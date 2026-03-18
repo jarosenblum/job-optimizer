@@ -43,7 +43,8 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def chat_json(client: OpenAI, config: LLMConfig, system: str, user: str) -> str:
+def chat_json(client: OpenAI, config: LLMConfig, system: str, user: str) -> dict:
+
     resp = client.chat.completions.create(
         model=config.model,
         temperature=config.temperature,
@@ -52,4 +53,18 @@ def chat_json(client: OpenAI, config: LLMConfig, system: str, user: str) -> str:
             {"role": "user", "content": user},
         ],
     )
-    return resp.choices[0].message.content or ""
+
+    import json
+
+    content = resp.choices[0].message.content or ""
+    content = content.strip()
+
+    try:
+        parsed = json.loads(content)
+    except Exception:
+        raise ValueError(f"Model did not return valid JSON:\n{content}")
+
+    if not isinstance(parsed, dict):
+        raise ValueError(f"Expected JSON object, got: {parsed}")
+
+    return parsed
