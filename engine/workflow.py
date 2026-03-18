@@ -133,8 +133,7 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         user_prompt = build_job_blueprint_prompt(job_text, title=title, company=company, location=location, source=source)
         save_prompt(run_paths, "3", user_prompt)
 
-        raw = chat_json(client, cfg, system_json_only(), user_prompt)
-        artifact = json.loads(raw)
+        artifact = chat_json(client, cfg, system_json_only(), user_prompt)
 
         artifact.setdefault("schema_version", "1.0")
         artifact["artifact_type"] = "job_blueprint"
