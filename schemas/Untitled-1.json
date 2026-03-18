@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "candidate_profile",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "created_at", "run_id", "candidate_id", "raw_text", "chunks"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "artifact_type": { "const": "candidate_profile" },
+    "created_at": { "type": "string" },
+    "run_id": { "type": "string" },
+    "candidate_id": { "type": "string" },
+    "source_refs": { "type": "object" },
+    "raw_text": {
+      "type": "object",
+      "required": ["resume_text"],
+      "properties": {
+        "resume_text": { "type": "string" },
+        "cover_letter_texts": { "type": "array", "items": { "type": "string" } },
+        "notes_texts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chunk_id", "chunk_type", "text"],
+        "properties": {
+          "chunk_id": { "type": "string" },
+          "chunk_type": { "type": "string" },
+          "text": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

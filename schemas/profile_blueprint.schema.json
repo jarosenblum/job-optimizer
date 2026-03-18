@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "profile_blueprint",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "created_at", "run_id", "candidate_id", "targeting", "approved_claims"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "artifact_type": { "const": "profile_blueprint" },
+    "created_at": { "type": "string" },
+    "run_id": { "type": "string" },
+    "candidate_id": { "type": "string" },
+    "targeting": { "type": "object" },
+    "strengths": { "type": "array" },
+    "tooling_signals": { "type": "object" },
+    "leadership_scope": { "type": "object" },
+    "approved_claims": { "type": "array" },
+    "do_not_claim": { "type": "array" },
+    "preferred_language": { "type": "object" }
+  }
+}

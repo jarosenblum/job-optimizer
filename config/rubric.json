@@ -1,0 +1,10 @@
+{
+  "rubric_version": "0.1",
+  "weights": {
+    "title_fit": 0.25,
+    "skills_tools_fit": 0.25,
+    "leadership_scope_fit": 0.25,
+    "domain_fit": 0.15,
+    "red_flag_penalty": 0.10
+  }
+}

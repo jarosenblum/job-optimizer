@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "match_report",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "created_at", "run_id", "candidate_id", "job_id", "overall", "component_scores", "gaps"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "artifact_type": { "const": "match_report" },
+    "created_at": { "type": "string" },
+    "run_id": { "type": "string" },
+    "candidate_id": { "type": "string" },
+    "job_id": { "type": "string" },
+    "overall": {
+      "type": "object",
+      "required": ["fit_label", "fit_score"],
+      "properties": {
+        "fit_label": { "type": "string" },
+        "fit_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "one_sentence_verdict": { "type": "string" }
+      }
+    },
+    "component_scores": {
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["score", "notes"],
+    "properties": {
+      "score": { "type": "number", "minimum": 0, "maximum": 100 },
+      "notes": { "type": "string" }
+    }
+  }
+},
+    "evidence": { "type": "array" },
+    "gaps": { "type": "array" },
+    "language_optimization": { "type": "object" },
+    "guardrails": { "type": "object" },
+    "next_actions": { "type": "array" },
+    "rubric": { "type": "object" }
+  }
+}
