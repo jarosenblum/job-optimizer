@@ -1,0 +1,16 @@
+{
+  "workflow_id": "guided_job_optimization_phase1",
+  "workflow_name": "Guided Job Optimization MVP",
+  "steps": [
+    "resume_intake",
+    "job_description_intake",
+    "match_analysis",
+    "gap_analysis",
+    "summary_revision",
+    "experience_revision",
+    "skills_revision",
+    "cover_letter_generation",
+    "final_review",
+    "export_bundle"
+  ]
+}

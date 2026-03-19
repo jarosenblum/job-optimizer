@@ -1,0 +1,114 @@
+{
+  "steps": [
+    {
+      "step_id": "resume_intake",
+      "step_name": "Resume Intake",
+      "step_order": 1,
+      "description": "Collect and validate resume input.",
+      "inputs_required": [],
+      "outputs_produced": ["ResumeArtifact"],
+      "validation_rule_ids": ["resume_raw_text_required"],
+      "unlock_condition": "always",
+      "is_required": true
+    },
+    {
+      "step_id": "job_description_intake",
+      "step_name": "Job Description Intake",
+      "step_order": 2,
+      "description": "Collect and validate target role input.",
+      "inputs_required": ["ResumeArtifact"],
+      "outputs_produced": ["JobDescriptionArtifact"],
+      "validation_rule_ids": ["jd_raw_text_required"],
+      "unlock_condition": "resume_intake.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "match_analysis",
+      "step_name": "Match Analysis",
+      "step_order": 3,
+      "description": "Generate baseline alignment score and rationale.",
+      "inputs_required": ["ResumeArtifact", "JobDescriptionArtifact"],
+      "outputs_produced": ["MatchAnalysis"],
+      "validation_rule_ids": [],
+      "unlock_condition": "job_description_intake.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "gap_analysis",
+      "step_name": "Gap Analysis",
+      "step_order": 4,
+      "description": "Identify missing evidence and priority gaps.",
+      "inputs_required": ["MatchAnalysis"],
+      "outputs_produced": ["GapAnalysis"],
+      "validation_rule_ids": [],
+      "unlock_condition": "match_analysis.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "summary_revision",
+      "step_name": "Summary Revision",
+      "step_order": 5,
+      "description": "Revise the professional summary.",
+      "inputs_required": ["ResumeArtifact", "GapAnalysis"],
+      "outputs_produced": ["RevisionSuggestion"],
+      "validation_rule_ids": [],
+      "unlock_condition": "gap_analysis.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "experience_revision",
+      "step_name": "Experience Revision",
+      "step_order": 6,
+      "description": "Revise experience bullets.",
+      "inputs_required": ["ResumeArtifact", "GapAnalysis"],
+      "outputs_produced": ["RevisionSuggestion"],
+      "validation_rule_ids": [],
+      "unlock_condition": "summary_revision.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "skills_revision",
+      "step_name": "Skills Revision",
+      "step_order": 7,
+      "description": "Revise and reorganize skills.",
+      "inputs_required": ["ResumeArtifact", "GapAnalysis"],
+      "outputs_produced": ["RevisionSuggestion"],
+      "validation_rule_ids": [],
+      "unlock_condition": "experience_revision.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "cover_letter_generation",
+      "step_name": "Cover Letter Generation",
+      "step_order": 8,
+      "description": "Generate targeted cover letter.",
+      "inputs_required": ["ResumeArtifact", "JobDescriptionArtifact", "GapAnalysis"],
+      "outputs_produced": ["CoverLetterDraft"],
+      "validation_rule_ids": [],
+      "unlock_condition": "skills_revision.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "final_review",
+      "step_name": "Final Review",
+      "step_order": 9,
+      "description": "Review generated artifacts and recommendations.",
+      "inputs_required": ["RevisionSuggestion", "CoverLetterDraft"],
+      "outputs_produced": ["GeneratedArtifact"],
+      "validation_rule_ids": [],
+      "unlock_condition": "cover_letter_generation.complete",
+      "is_required": true
+    },
+    {
+      "step_id": "export_bundle",
+      "step_name": "Export Bundle",
+      "step_order": 10,
+      "description": "Assemble exportable outputs.",
+      "inputs_required": ["GeneratedArtifact"],
+      "outputs_produced": ["ExportBundle"],
+      "validation_rule_ids": [],
+      "unlock_condition": "final_review.complete",
+      "is_required": true
+    }
+  ]
+}

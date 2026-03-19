@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "rule_id": "resume_raw_text_required",
+      "rule_name": "Resume raw text required",
+      "step_id": "resume_intake",
+      "rule_type": "required_field",
+      "target_field": "raw_text",
+      "condition": "non_empty",
+      "error_message": "Please paste or upload a resume before continuing."
+    },
+    {
+      "rule_id": "jd_raw_text_required",
+      "rule_name": "Job description raw text required",
+      "step_id": "job_description_intake",
+      "rule_type": "required_field",
+      "target_field": "raw_text",
+      "condition": "non_empty",
+      "error_message": "Please paste a job description before continuing."
+    }
+  ]
+}
