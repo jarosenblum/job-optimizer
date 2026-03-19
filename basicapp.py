@@ -58,9 +58,12 @@ def ensure_state():
 
         st.session_state.resume_text = ""
         st.session_state.jd_text = ""
+        st.session_state.cover_letter_start_text = ""
+        st.session_state.cover_letter_working_text = ""
         st.session_state.requested_step_id = None
-        st.session_state.chat_input = ""
         st.session_state.focus_output_step = None
+        st.session_state.chat_responses_by_step = {}
+        st.session_state.selected_seed_prompt_by_step = {}
 
         st.session_state.match_analysis = None
         st.session_state.gap_analysis = None
@@ -164,6 +167,7 @@ def build_placeholder_gap_analysis() -> GapAnalysis:
         ),
     )
 
+
 def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
     revised_summary = (
         "Strategic educator and program leader with experience designing AI-enabled initiatives, "
@@ -206,6 +210,7 @@ def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
         section_notes=section_notes,
         full_revision_text=full_revision_text,
     )
+
 
 def build_placeholder_revisions() -> list[RevisionSuggestion]:
     return [
@@ -410,19 +415,58 @@ def render_resume_intake():
 
     st.markdown("### Resume Intake")
     st.write("Paste the candidate resume text. This becomes the base candidate context for downstream analysis.")
+
     st.session_state.resume_text = st.text_area(
         "Resume text",
         st.session_state.resume_text,
         height=220,
+        key="resume_intake_text_area",
     )
 
-    if st.button("Submit Resume", key="submit_resume"):
+    render_section_break("Cover Letter Intake")
+    st.write(
+        "Provide the starting and working cover-letter materials. "
+        "These are optional for the current scaffold, but should be collected now so later cover-letter revision is grounded in real artifacts."
+    )
+
+    st.session_state.cover_letter_start_text = st.text_area(
+        "Starting cover letter / original source letter",
+        st.session_state.cover_letter_start_text,
+        height=180,
+        key="cover_letter_start_text_area",
+    )
+
+    st.session_state.cover_letter_working_text = st.text_area(
+        "Working cover letter / current draft",
+        st.session_state.cover_letter_working_text,
+        height=180,
+        key="cover_letter_working_text_area",
+    )
+
+    st.markdown("### Intake status")
+    has_resume = bool(st.session_state.resume_text.strip())
+    has_cover_start = bool(st.session_state.cover_letter_start_text.strip())
+    has_cover_working = bool(st.session_state.cover_letter_working_text.strip())
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Resume", "Present" if has_resume else "Missing")
+    with col2:
+        st.metric("Starting letter", "Present" if has_cover_start else "Optional")
+    with col3:
+        st.metric("Working letter", "Present" if has_cover_working else "Optional")
+
+    if st.button("Submit Resume + Letter Inputs", key="submit_resume"):
         workflow_state = router.start_step(workflow_state, "resume_intake")
         workflow_state = router.complete_step(
             workflow_state,
             "resume_intake",
-            payload={"raw_text": st.session_state.resume_text},
-            output_ref="resume_001" if st.session_state.resume_text.strip() else None,
+            payload={
+                "resume_raw_text": st.session_state.resume_text,
+                "cover_letter_start_text": st.session_state.cover_letter_start_text,
+                "cover_letter_working_text": st.session_state.cover_letter_working_text,
+            },
+            output_ref="resume_001" if has_resume else None,
         )
         st.session_state.workflow_state = workflow_state
         sync_session()
@@ -439,6 +483,7 @@ def render_job_description_intake():
         "Job description text",
         st.session_state.jd_text,
         height=220,
+        key="jd_text_area",
     )
 
     if st.button("Submit Job Description", key="submit_jd"):
@@ -557,6 +602,11 @@ def get_step_output_summary(step_id: str) -> dict:
             ]
 
     return summary
+
+
+def render_section_break(title: str):
+    st.markdown("---")
+    st.markdown(f"## {title}")
 
 
 def render_step_context(step_id: str):
@@ -692,103 +742,174 @@ def render_seeded_prompts(step_id: str):
 
     prompts = {
         "match_analysis": [
-            "How would the organization interpret this candidate?",
+            "What are the strongest parts of this resume?",
             "What is strong but under-communicated?",
+            "How would the organization interpret this candidate?",
         ],
         "gap_analysis": [
-            "What gaps matter most and why?",
-            "What should be prioritized first?",
+            "What are the main gaps?",
+            "What needs improvement first?",
+            "Which issues are framing issues rather than evidence issues?",
         ],
         "summary_revision": [
+            "What is already good about the summary direction?",
+            "What still needs improvement in the summary?",
             "How should the summary be reframed for this role?",
-            "What should the summary signal immediately?",
         ],
         "experience_revision": [
-            "Why do the current bullets read as too execution-level?",
+            "What is already good about the experience evidence?",
+            "What do the bullets currently under-signal?",
             "How should the bullets show broader impact?",
         ],
+        "skills_revision": [
+            "What skills already align well?",
+            "What language is missing from the skills section?",
+            "What should be improved in the skills framing?",
+        ],
         "cover_letter_generation": [
+            "What is good about the current letter direction?",
+            "What gaps remain in the letter?",
             "How should the letter differ from the resume?",
-            "What is the strongest opening strategy here?",
         ],
     }
 
     for prompt in prompts.get(step_id, []):
         if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
-            st.session_state.chat_input = prompt
+            st.session_state.selected_seed_prompt_by_step[step_id] = prompt
+            st.session_state[f"chat_input_{step_id}"] = prompt
 
 
 def render_chat(step_id: str):
     st.markdown("### Ask / Explore")
-    user_input = st.text_input("Ask a question", key="chat_input")
 
-    if user_input:
-        st.write("**Response:**")
+    selected_prompt = st.session_state.selected_seed_prompt_by_step.get(step_id)
+    if selected_prompt:
+        st.caption(f"Selected prompt: {selected_prompt}")
 
-        if step_id == "match_analysis":
-            st.write(
-                "At this stage, the strongest interpretation is that the candidate already has relevant substance, "
-                "but the current materials do not yet make that substance fully legible in the organization’s preferred language. "
-                "What is present is meaningful: program design, stakeholder collaboration, and innovation work all point toward genuine fit. "
-                "The issue is not that the candidate lacks relevant experience, but that the current materials communicate that experience in a way "
-                "that reads as thoughtful and execution-aware rather than explicitly strategic, organizational, and transformation-oriented. "
-                "In practical terms, that means the next step is less about inventing stronger claims and more about reframing valid evidence so it is "
-                "recognized as relevant by this audience. The role appears to reward not only competence, but visible alignment with organizational scale, "
-                "cross-functional leadership, and transformation language."
+    user_input = st.text_input(
+        "Ask a question",
+        key=f"chat_input_{step_id}",
+    )
+
+    if not user_input:
+        return
+
+    response = ""
+
+    if step_id == "match_analysis":
+        if "strongest parts" in user_input.lower() or "good" in user_input.lower():
+            response = (
+                "The strongest parts of the resume appear to be the substantive evidence already present: program design, "
+                "cross-stakeholder collaboration, and innovation-oriented work. These are not minor strengths; they suggest that the candidate already has a meaningful basis for fit. "
+                "What makes them easy to miss is not weakness in the underlying experience, but the way that experience is currently framed. At the moment, the materials seem to communicate "
+                "competence and seriousness more than strategic or transformation-oriented identity. So the good news is that the resume appears to have real material to work with."
             )
-
-        elif step_id == "gap_analysis":
-            st.write(
-                "The most important thing to understand here is that the leading gaps are interpretive, not merely semantic. "
-                "The candidate’s materials appear to contain meaningful evidence of fit, but the way that evidence is currently framed does not consistently "
-                "match how the target role describes value. That distinction matters. A weaker candidate would need new evidence; this candidate more likely needs "
-                "clearer signaling. The priority gaps therefore matter because they affect how the organization is likely to read the candidate’s relevance. "
-                "Language like transformation, organizational impact, and scale should not be treated as decorative keywords. They are cues for how the institution "
-                "classifies leadership and fit. The revisions should therefore focus on making real strengths easier to recognize in the role’s own terms."
+        elif "gap" in user_input.lower() or "under-communicated" in user_input.lower():
+            response = (
+                "What is under-communicated is not merely a keyword layer, but an interpretive layer. The candidate’s work may already map to the role, "
+                "but the current materials do not yet make that fit obvious in the language the organization appears to value. In particular, transformation, scale, and organizational leadership "
+                "are not yet foregrounded strongly enough. That means the revisions should focus on making real strengths more legible, rather than inventing new strengths."
             )
-
-        elif step_id == "summary_revision":
-            st.write(
-                "The summary is not just a short introduction; it is the framing device through which the rest of the resume is read. "
-                "If it reads as competent but too general, then even strong downstream evidence can be interpreted too narrowly. "
-                "In this case, the summary needs to do more than state experience. It needs to signal how that experience should be understood: "
-                "as strategic, organizationally relevant, and capable of supporting transformation-oriented work. The revision therefore should foreground "
-                "leadership, stakeholder alignment, and innovation in a way that feels grounded rather than inflated. A strong summary here helps the reader "
-                "interpret later experience bullets through the right lens from the start."
-            )
-
-        elif step_id == "experience_revision":
-            st.write(
-                "Experience bullets are where abstract fit becomes evidence. Right now, the likely problem is not that the bullets are empty, "
-                "but that they may read as task-level, local, or instructional in ways that understate broader organizational relevance. "
-                "This is why the revision work needs to focus on framing as much as wording. The goal is to show the reader how to interpret the candidate’s work: "
-                "not simply as execution, but as coordination, translation, alignment, adoption, and institutional contribution. "
-                "When the bullets are revised well, they do not become exaggerated; instead, they become more legible to the organization’s priorities."
-            )
-
-        elif step_id == "skills_revision":
-            st.write(
-                "The skills section functions as a compressed interpretive signal. A hiring reader may not treat it as the most nuanced part of the document, "
-                "but it strongly shapes first impressions of fit. That is why language issues should be resolved here explicitly. If the role repeatedly emphasizes "
-                "transformation, organizational impact, cross-functional alignment, or similar concepts, the skills section should reinforce that signal rather than "
-                "remain generic. The purpose is not keyword stuffing. The purpose is to ensure that the reader’s quick scan confirms the broader narrative already built "
-                "by the summary and experience sections."
-            )
-
-        elif step_id == "cover_letter_generation":
-            st.write(
-                "The cover letter should function as an interpretive bridge between the candidate’s evidence and the organization’s priorities. "
-                "It should not merely restate the resume, and it should not try to compensate for weak materials by becoming generic or overly broad. "
-                "Instead, it should help the organization understand why the candidate’s experience matters in this context. That means selecting the right dimensions "
-                "of the candidate’s background, adopting the role’s language where appropriate, and framing the candidate as someone whose work already points toward the "
-                "kind of contribution the organization values. A strong letter clarifies fit; it does not simply assert it."
-            )
-
         else:
-            st.write(
-                "This step should help the user understand not only what was generated, but why it matters, how it fits into the larger workflow, "
-                "and how the generated output should be interpreted in light of the organization’s priorities."
+            response = (
+                "At this stage, the strongest interpretation is that the candidate already has relevant substance, but the current materials do not yet make that substance fully legible "
+                "in the organization’s preferred language. The next step is less about inventing stronger claims and more about reframing valid evidence so it is recognized as relevant by this audience."
             )
+
+    elif step_id == "gap_analysis":
+        if "good" in user_input.lower():
+            response = (
+                "The encouraging point in the gap analysis is that the leading issues seem to be representational rather than purely experiential. "
+                "That means the candidate may already possess much of the right substance. The problem is that the current framing does not consistently surface that substance in a way that matches the role’s own definitions of value."
+            )
+        elif "improvement" in user_input.lower() or "gap" in user_input.lower():
+            response = (
+                "The most important improvements are the ones that change how the organization interprets the candidate. "
+                "Language such as transformation, organizational impact, and scale should be treated as meaning-bearing signals, not decorative add-ons. "
+                "The candidate likely needs clearer strategic framing, stronger narration of impact, and more explicit alignment with the organization’s priorities."
+            )
+        else:
+            response = (
+                "The leading gaps are interpretive, not merely semantic. The candidate’s materials appear to contain meaningful evidence of fit, but the way that evidence is currently framed "
+                "does not consistently match how the target role describes value."
+            )
+
+    elif step_id == "summary_revision":
+        if "good" in user_input.lower():
+            response = (
+                "What is good about the summary direction is that the revision is beginning to reposition the candidate as a strategic and organizationally relevant actor rather than only a capable practitioner. "
+                "That is important because the summary functions as the lens for reading the rest of the resume. When it works well, it prepares the reader to interpret downstream evidence as leadership and organizational contribution."
+            )
+        elif "improve" in user_input.lower() or "reframed" in user_input.lower():
+            response = (
+                "What still needs improvement in the summary is the explicit signaling of scale, transformation, and organizational relevance. "
+                "The summary should not merely state experience; it should guide the reader toward the correct interpretation of that experience. "
+                "That means foregrounding leadership, stakeholder alignment, and broader impact in a way that feels credible and grounded."
+            )
+        else:
+            response = (
+                "The summary is not just a short introduction; it is the framing device through which the rest of the resume is read. "
+                "A strong summary here helps the reader interpret later experience bullets through the right lens from the start."
+            )
+
+    elif step_id == "experience_revision":
+        if "good" in user_input.lower():
+            response = (
+                "The strongest thing about the experience evidence is that it likely already contains meaningful work: coordination, initiative design, adoption support, and practical implementation. "
+                "Those are valuable. What is needed is a stronger presentation of those same experiences as evidence of broader leadership, alignment, and organizational contribution."
+            )
+        elif "under-signal" in user_input.lower() or "improve" in user_input.lower():
+            response = (
+                "The bullets currently risk under-signaling scope and significance. When experience reads as task-level or purely local, the organization may miss broader relevance. "
+                "The revision should therefore emphasize translation, coordination, leadership, adoption, and institutional value, not just execution."
+            )
+        else:
+            response = (
+                "Experience bullets are where abstract fit becomes evidence. The revision work here needs to focus on framing as much as wording so the candidate’s work becomes more legible to the organization’s priorities."
+            )
+
+    elif step_id == "skills_revision":
+        if "align" in user_input.lower() or "good" in user_input.lower():
+            response = (
+                "Some skills already align well, especially where they suggest program design, collaboration, and practical implementation. "
+                "The task now is to make the section more legible in the organization’s own language so those strengths are recognized more quickly."
+            )
+        elif "missing" in user_input.lower() or "improve" in user_input.lower():
+            response = (
+                "What is missing is not simply more content, but more targeted framing. If the role emphasizes transformation, organizational impact, or cross-functional alignment, "
+                "the skills section should reinforce those ideas directly so the resume’s quick-scan layer matches the deeper narrative."
+            )
+        else:
+            response = (
+                "The skills section functions as a compressed interpretive signal. It should confirm the broader story told by the summary and experience sections."
+            )
+
+    elif step_id == "cover_letter_generation":
+        if "good" in user_input.lower():
+            response = (
+                "What is promising about the current letter direction is that it already points toward strategic fit and organizational relevance. "
+                "That gives you a foundation. The next step is to make that fit feel more specifically grounded in the candidate’s evidence and the organization’s priorities."
+            )
+        elif "gap" in user_input.lower() or "differ" in user_input.lower() or "improve" in user_input.lower():
+            response = (
+                "The cover letter should not merely restate the resume. Its main job is interpretive: it should explain why this candidate’s experience matters in this context. "
+                "What still needs improvement is the bridge between evidence and organizational need. The letter should foreground the strongest parts of the candidate’s background, "
+                "name the most relevant themes in the role, and connect those two with more deliberate framing."
+            )
+        else:
+            response = (
+                "The cover letter should function as an interpretive bridge between the candidate’s evidence and the organization’s priorities."
+            )
+
+    else:
+        response = (
+            "This step should help the user understand what is already strong, what gaps remain, and what should be improved now."
+        )
+
+    st.session_state.chat_responses_by_step[step_id] = response
+
+    st.write("**Response:**")
+    st.write(response)
 
 
 def render_match_analysis_step():
@@ -864,9 +985,10 @@ def render_summary_revision_step():
     render_step_context(step_id)
     render_step_output_card(step_id)
 
-    st.markdown("### Revise Resume Summary")
+    render_section_break("Summary Revision Workspace")
     st.write("Generate a revised professional summary using the alignment and gap analysis.")
 
+    render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
 
     if st.button("Generate Summary Revision", key="run_summary_revision"):
@@ -883,7 +1005,10 @@ def render_summary_revision_step():
         sync_session()
         st.rerun()
 
+    render_section_break("Revised Output")
     render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
     render_seeded_prompts(step_id)
     render_chat(step_id)
 
@@ -896,11 +1021,12 @@ def render_experience_revision_step():
     render_step_context(step_id)
     render_step_output_card(step_id)
 
-    st.markdown("### Revise Experience Bullets")
+    render_section_break("Experience Revision Workspace")
     st.write(
         "Generate stronger experience bullet language that better matches the target role’s organizational framing."
     )
 
+    render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
 
     if st.button("Generate Experience Revisions", key="run_experience_revision"):
@@ -916,9 +1042,13 @@ def render_experience_revision_step():
         sync_session()
         st.rerun()
 
+    render_section_break("Revised Output")
     render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
     render_seeded_prompts(step_id)
     render_chat(step_id)
+
 
 def render_skills_revision_step():
     _, _, router = load_workflow_components()
@@ -928,11 +1058,12 @@ def render_skills_revision_step():
     render_step_context(step_id)
     render_step_output_card(step_id)
 
-    st.markdown("### Revise Skills and Compile Resume Redesign")
+    render_section_break("Skills Revision Workspace")
     st.write(
         "Generate the final resume redesign package, including revised skills language and compiled revised content."
     )
 
+    render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
 
     if st.button("Generate Resume Redesign", key="run_skills_revision"):
@@ -949,46 +1080,13 @@ def render_skills_revision_step():
         sync_session()
         st.rerun()
 
+    render_section_break("Revised Output")
     render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
     render_seeded_prompts(step_id)
     render_chat(step_id)
 
-def render_current_step():
-    current_step_id = st.session_state.workflow_state.current_step_id
-
-    if current_step_id == "resume_intake":
-        render_step_context(current_step_id)
-        render_step_output_card(current_step_id)
-        render_resume_intake()
-
-    elif current_step_id == "job_description_intake":
-        render_step_context(current_step_id)
-        render_step_output_card(current_step_id)
-        render_job_description_intake()
-
-    elif current_step_id == "match_analysis":
-        render_match_analysis_step()
-
-    elif current_step_id == "gap_analysis":
-        render_gap_analysis_step()
-
-    elif current_step_id == "summary_revision":
-        render_summary_revision_step()
-
-    elif current_step_id == "experience_revision":
-        render_experience_revision_step()
-
-    elif current_step_id == "skills_revision":
-        render_skills_revision_step()
-
-    elif current_step_id == "cover_letter_generation":
-        render_cover_letter_generation_step()
-
-    else:
-        render_step_context(current_step_id)
-        render_step_output_card(current_step_id)
-        render_analysis_summary()
-        render_generic_step_stub(current_step_id)
 
 def render_cover_letter_generation_step():
     _, _, router = load_workflow_components()
@@ -998,17 +1096,38 @@ def render_cover_letter_generation_step():
     render_step_context(step_id)
     render_step_output_card(step_id)
 
-    st.markdown("### Generate Cover Letter")
+    render_section_break("Cover Letter Inputs Available")
+    start_present = bool(st.session_state.cover_letter_start_text.strip())
+    working_present = bool(st.session_state.cover_letter_working_text.strip())
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Starting letter", "Present" if start_present else "Missing")
+    with col2:
+        st.metric("Working letter", "Present" if working_present else "Missing")
+
+    can_generate_letter = start_present or working_present
+
+    if not can_generate_letter:
+        st.info("Provide a starting or working cover letter above to generate a grounded letter revision.")
+
+    render_section_break("Strengths / Gaps / Improve Now")
+    render_revision_issue_resolution(step_id)
+
+    render_section_break("Cover Letter Generation Workspace")
     st.write(
-        "Generate a targeted cover letter using the prior analysis, revision decisions, and strategy."
+        "Generate a targeted cover letter using the prior analysis, revision decisions, strategy, and any available cover-letter source materials."
     )
 
-    if st.button("Generate Cover Letter", key="run_cover_letter_generation"):
+    if st.button("Generate Cover Letter", key="run_cover_letter_generation", disabled=not can_generate_letter):
         workflow_state = router.start_step(workflow_state, step_id)
         workflow_state = router.complete_step(
             workflow_state,
             step_id,
-            payload={"placeholder": "ok"},
+            payload={
+                "cover_letter_start_text": st.session_state.cover_letter_start_text,
+                "cover_letter_working_text": st.session_state.cover_letter_working_text,
+            },
             output_ref="cover_letter_generation_001",
         )
         st.session_state.workflow_state = workflow_state
@@ -1017,58 +1136,74 @@ def render_cover_letter_generation_step():
         st.rerun()
 
     render_analysis_summary()
+
+    render_section_break("Explore This Revision")
     render_seeded_prompts(step_id)
     render_chat(step_id)
 
+
 def render_revision_issue_resolution(step_id: str):
+    match = st.session_state.match_analysis
     gap = st.session_state.gap_analysis
-    if not gap:
+
+    if not match and not gap:
         return
 
-    st.markdown("### Issues to Resolve in This Revision")
+    st.markdown("### Strengths")
+    if match:
+        strengths = match.strengths[:2] if match.strengths else []
+        if strengths:
+            for item in strengths:
+                st.write(f"- {item}")
+        else:
+            st.write("- Relevant substance appears present, but may not yet be fully signaled.")
+    else:
+        st.write("- Core candidate evidence appears present.")
 
+    st.markdown("### Gaps")
+    if gap:
+        if step_id == "summary_revision":
+            for item in gap.language_gaps[:3]:
+                st.write(f"- Underused language in summary: {item}")
+            for item in gap.framing_gaps[:1]:
+                st.write(f"- Framing gap in summary: {item}")
+
+        elif step_id == "experience_revision":
+            for item in gap.language_gaps[:3]:
+                st.write(f"- Experience language gap: {item}")
+            for item in gap.framing_gaps[:2]:
+                st.write(f"- Experience framing gap: {item}")
+
+        elif step_id == "skills_revision":
+            for item in gap.language_gaps[:4]:
+                st.write(f"- Skills language gap: {item}")
+
+        elif step_id == "cover_letter_generation":
+            for item in gap.language_gaps[:3]:
+                st.write(f"- Letter should better reflect: {item}")
+            for item in gap.framing_gaps[:1]:
+                st.write(f"- Letter framing issue: {item}")
+    else:
+        st.write("- No structured gap analysis available yet.")
+
+    st.markdown("### Improve Now")
     if step_id == "summary_revision":
-        st.write("**Language issues to resolve here**")
-        for item in gap.language_gaps[:3]:
-            st.write(f"- {item}")
-
-        st.write("**Framing issues that matter here**")
-        for item in gap.framing_gaps[:1]:
-            st.write(f"- {item}")
-
-        st.markdown("**Why this matters in the summary**")
         st.write(
-            "The summary is the first place the organization forms an impression of scale, leadership, and relevance. "
-            "If the summary reads as competent but not explicitly strategic, the rest of the materials can be interpreted "
-            "through a narrower lens than the role requires."
+            "Revise the summary so it immediately signals leadership, organizational relevance, and transformation-oriented scope."
         )
-
     elif step_id == "experience_revision":
-        st.write("**Language issues to resolve in experience bullets**")
-        for item in gap.language_gaps[:3]:
-            st.write(f"- {item}")
-
-        st.write("**Framing issues to resolve in bullets**")
-        for item in gap.framing_gaps[:2]:
-            st.write(f"- {item}")
-
-        st.markdown("**Why this matters in experience bullets**")
         st.write(
-            "Experience bullets are where the candidate’s work is translated into evidence. If they read as task-level "
-            "or instructional-only, the organization may miss the broader scope, leadership, and transformation relevance "
-            "that the candidate actually brings."
+            "Rewrite the bullets so they read as broader evidence of coordination, impact, and organizational contribution rather than only task execution."
         )
-
     elif step_id == "skills_revision":
-        st.write("**Language that should be more visible in the skills section**")
-        for item in gap.language_gaps[:4]:
-            st.write(f"- {item}")
-
-        st.markdown("**Why this matters in the skills section**")
         st.write(
-            "The skills section acts as a fast interpretive cue. It should reinforce the organizational language already "
-            "surfaced in the analysis so the candidate appears legible and aligned at a glance."
+            "Re-label and surface skills using the role’s own language so the candidate appears more legible at a glance."
         )
+    elif step_id == "cover_letter_generation":
+        st.write(
+            "Use the letter to interpret the candidate’s evidence for this organization, not simply repeat the resume."
+        )
+
 
 def render_resume_revision_output(step_id: str):
     artifact = st.session_state.resume_revision_artifact
@@ -1109,7 +1244,44 @@ def render_resume_revision_output(step_id: str):
         st.markdown("**Compiled Resume Redesign Notes**")
         for note in artifact.section_notes:
             st.write(f"- {note}")
-            
+
+
+def render_current_step():
+    current_step_id = st.session_state.workflow_state.current_step_id
+
+    if current_step_id == "resume_intake":
+        render_step_context(current_step_id)
+        render_step_output_card(current_step_id)
+        render_resume_intake()
+
+    elif current_step_id == "job_description_intake":
+        render_step_context(current_step_id)
+        render_step_output_card(current_step_id)
+        render_job_description_intake()
+
+    elif current_step_id == "match_analysis":
+        render_match_analysis_step()
+
+    elif current_step_id == "gap_analysis":
+        render_gap_analysis_step()
+
+    elif current_step_id == "summary_revision":
+        render_summary_revision_step()
+
+    elif current_step_id == "experience_revision":
+        render_experience_revision_step()
+
+    elif current_step_id == "skills_revision":
+        render_skills_revision_step()
+
+    elif current_step_id == "cover_letter_generation":
+        render_cover_letter_generation_step()
+
+    else:
+        render_step_context(current_step_id)
+        render_step_output_card(current_step_id)
+        render_analysis_summary()
+        render_generic_step_stub(current_step_id)
 
 
 def render_focused_output():
@@ -1201,6 +1373,7 @@ def main():
 
         render_focused_output()
         st.markdown("---")
+
         if st.session_state.resume_revision_artifact:
             st.markdown("---")
             st.subheader("Resume Redesign Artifact")
