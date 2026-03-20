@@ -38,11 +38,11 @@ def load_workflow_components():
     rule_set = ValidationRuleSet.from_json(VALIDATION_RULES_PATH)
     validator = ValidatorEngine(rule_set)
     from workflow.router import WorkflowRouter
+
     router = WorkflowRouter(registry, validator)
     return registry, validator, router
 
 
-# [REPLACE ensure_state]
 def ensure_state():
     _, _, router = load_workflow_components()
 
@@ -66,10 +66,6 @@ def ensure_state():
         st.session_state.chat_responses_by_step = {}
         st.session_state.selected_seed_prompt_by_step = {}
         st.session_state.chat_history_by_step = {}
-
-        # added for safe chat input reset/prefill behavior
-        st.session_state.chat_input_reset_counter_by_step = {}
-        st.session_state.pending_prompt_by_step = {}
 
         st.session_state.match_analysis = None
         st.session_state.gap_analysis = None
@@ -233,6 +229,7 @@ REVISED SKILLS
         section_notes=section_notes,
         full_revision_text=full_revision_text,
     )
+
 
 def build_placeholder_revisions() -> list[RevisionSuggestion]:
     return [
@@ -401,6 +398,7 @@ def build_placeholder_analysis_explanations() -> dict[str, AnalysisExplanation]:
         ),
     }
 
+
 def build_deep_analysis_memo(step_id: str) -> dict:
     if step_id == "summary_revision":
         return {
@@ -543,38 +541,6 @@ def build_deep_analysis_memo(step_id: str) -> dict:
     }
 
 
-def render_deep_analysis_memo(step_id: str):
-    mode = st.session_state.get("verbosity_mode", DEFAULT_VERBOSITY_MODE)
-    if mode != "deep":
-        return
-
-    memo = build_deep_analysis_memo(step_id)
-
-    render_section_break("Deep Analysis Memo")
-    st.markdown("### Executive Summary")
-    st.write(memo["executive_summary"])
-
-    st.markdown("### What Is Strong")
-    st.write(memo["what_is_strong"])
-
-    st.markdown("### How the Organization Is Likely to Read This")
-    st.write(memo["how_the_role_reads_this"])
-
-    st.markdown("### What Is Under-Signaled or Misframed")
-    st.write(memo["what_is_under_signaled"])
-
-    st.markdown("### Revision Strategy")
-    st.write(memo["revision_strategy"])
-
-    st.markdown("### Context")
-    st.write(memo["context"])
-
-    st.markdown("### Example Reframe")
-    st.write(memo["example_reframe"])
-
-    st.markdown("### Reader Takeaway")
-    st.write(memo["reader_takeaway"])
-
 def build_final_review_memo() -> dict:
     return {
         "application_read": (
@@ -599,50 +565,6 @@ def build_final_review_memo() -> dict:
         ),
     }
 
-
-def render_final_review_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "final_review"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Final Review")
-    st.write("Generate a final integrative review of the revised application materials.")
-
-    if st.button("Generate Final Review", key="run_final_review"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="final_review_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        sync_session()
-        st.rerun()
-
-    render_deep_analysis_memo(step_id)
-
-    memo = build_final_review_memo()
-    st.markdown("### How the Application Now Reads")
-    st.write(memo["application_read"])
-
-    st.markdown("### Strongest Differentiators")
-    for item in memo["strongest_differentiators"]:
-        st.write(f"- {item}")
-
-    st.markdown("### Remaining Risks")
-    for item in memo["remaining_risks"]:
-        st.write(f"- {item}")
-
-    st.markdown("### Final Edit Priorities")
-    for item in memo["final_edit_priorities"]:
-        st.write(f"- {item}")
-
-    st.markdown("### Submission Readiness")
-    st.write(memo["submission_readiness"])
 
 def build_export_bundle_text() -> str:
     artifact = st.session_state.resume_revision_artifact
@@ -678,37 +600,6 @@ def build_export_bundle_text() -> str:
     return "\n".join(parts)
 
 
-def render_export_bundle_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "export_bundle"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Export Bundle")
-    st.write("Assemble copy-ready outputs for resume revision, cover letter, and final review.")
-
-    if st.button("Assemble Export Bundle", key="run_export_bundle"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="export_bundle_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        sync_session()
-        st.rerun()
-
-    export_text = build_export_bundle_text()
-    st.text_area(
-        "Copy-ready export bundle",
-        value=export_text,
-        height=420,
-        key="export_bundle_text",
-    )
-
 def maybe_seed_placeholder_outputs():
     workflow_state = st.session_state.workflow_state
     completed_ids = {s.step_id for s in workflow_state.step_states if s.status.value == "complete"}
@@ -738,118 +629,80 @@ def maybe_seed_placeholder_outputs():
         st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
 
 
-def render_resume_intake():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
+def render_section_break(title: str):
+    st.markdown("---")
+    st.markdown(f"## {title}")
 
-    st.markdown("### Resume Intake")
-    st.write("Paste the candidate resume text. This becomes the base candidate context for downstream analysis.")
 
-    st.session_state.resume_text = st.text_area(
-        "Resume text",
-        st.session_state.resume_text,
-        height=220,
-        key="resume_intake_text_area",
-    )
+def get_step_index(step_id: str) -> tuple[int, int]:
+    step_ids = [s.step_id for s in st.session_state.workflow_state.step_states]
+    if step_id not in step_ids:
+        return 1, max(1, len(step_ids))
+    return step_ids.index(step_id) + 1, len(step_ids)
 
-    render_section_break("Cover Letter Intake")
-    st.write(
-        "Provide the starting and working cover-letter materials. "
-        "These are optional for the current scaffold, but should be collected now so later cover-letter revision is grounded in real artifacts."
-    )
 
-    st.session_state.cover_letter_start_text = st.text_area(
-        "Starting cover letter / original source letter",
-        st.session_state.cover_letter_start_text,
-        height=180,
-        key="cover_letter_start_text_area",
-    )
+def get_next_step_id(step_id: str) -> str | None:
+    step_ids = [s.step_id for s in st.session_state.workflow_state.step_states]
+    if step_id not in step_ids:
+        return None
+    idx = step_ids.index(step_id)
+    return step_ids[idx + 1] if idx + 1 < len(step_ids) else None
 
-    st.session_state.cover_letter_working_text = st.text_area(
-        "Working cover letter / current draft",
-        st.session_state.cover_letter_working_text,
-        height=180,
-        key="cover_letter_working_text_area",
-    )
 
-    st.markdown("### Intake status")
-    has_resume = bool(st.session_state.resume_text.strip())
-    has_cover_start = bool(st.session_state.cover_letter_start_text.strip())
-    has_cover_working = bool(st.session_state.cover_letter_working_text.strip())
+def get_previous_step_id(step_id: str) -> str | None:
+    step_ids = [s.step_id for s in st.session_state.workflow_state.step_states]
+    if step_id not in step_ids:
+        return None
+    idx = step_ids.index(step_id)
+    return step_ids[idx - 1] if idx - 1 >= 0 else None
 
-    col1, col2, col3 = st.columns(3)
+
+def render_step_action_bar(
+    step_id: str,
+    primary_label: str | None = None,
+    primary_key: str | None = None,
+    primary_disabled: bool = False,
+) -> bool:
+    step_num, total_steps = get_step_index(step_id)
+    prev_step_id = get_previous_step_id(step_id)
+    next_step_id = get_next_step_id(step_id)
+
+    st.markdown("### What to do next")
+    st.progress(step_num / total_steps)
+    st.caption(f"Step {step_num} of {total_steps}")
+
+    col1, col2, col3 = st.columns([1, 1, 2])
+
     with col1:
-        st.metric("Resume", "Present" if has_resume else "Missing")
+        if st.button(
+            "⬅ Back",
+            key=f"back_nav_{step_id}",
+            disabled=prev_step_id is None,
+            use_container_width=True,
+        ):
+            st.session_state.requested_step_id = prev_step_id
+            st.rerun()
+
     with col2:
-        st.metric("Starting letter", "Present" if has_cover_start else "Optional")
+        if st.button(
+            "Open next ➡",
+            key=f"next_nav_{step_id}",
+            disabled=next_step_id is None,
+            use_container_width=True,
+        ):
+            st.session_state.requested_step_id = next_step_id
+            st.rerun()
+
     with col3:
-        st.metric("Working letter", "Present" if has_cover_working else "Optional")
+        if primary_label:
+            return st.button(
+                primary_label,
+                key=primary_key or f"primary_action_{step_id}",
+                disabled=primary_disabled,
+                use_container_width=True,
+            )
 
-    if st.button("Submit Resume + Letter Inputs", key="submit_resume", disabled=not has_resume):
-        workflow_state = router.start_step(workflow_state, "resume_intake")
-        workflow_state = router.complete_step(
-            workflow_state,
-            "resume_intake",
-            payload={
-                "raw_text": st.session_state.resume_text,
-                "resume_raw_text": st.session_state.resume_text,
-                "cover_letter_start_text": st.session_state.cover_letter_start_text,
-                "cover_letter_working_text": st.session_state.cover_letter_working_text,
-            },
-            output_ref="resume_001" if has_resume else None,
-        )
-        st.session_state.workflow_state = workflow_state
-        sync_session()
-        st.rerun()
-
-
-def render_job_description_intake():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-
-    st.markdown("### Job Description Intake")
-    st.write("Paste the target role and organization text. This becomes the organizational context.")
-    st.session_state.jd_text = st.text_area(
-        "Job description text",
-        st.session_state.jd_text,
-        height=220,
-        key="jd_text_area",
-    )
-
-    if st.button("Submit Job Description", key="submit_jd"):
-        workflow_state = router.start_step(workflow_state, "job_description_intake")
-        workflow_state = router.complete_step(
-            workflow_state,
-            "job_description_intake",
-            payload={"raw_text": st.session_state.jd_text},
-            output_ref="jd_001" if st.session_state.jd_text.strip() else None,
-        )
-        st.session_state.workflow_state = workflow_state
-        sync_session()
-        st.rerun()
-
-
-def render_generic_step_stub(step_id: str):
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-
-    st.markdown(f"### {step_id.replace('_', ' ').title()}")
-    st.write(
-        "This step is now part of the guided UX shell. It can be completed with placeholder "
-        "behavior while engines are added."
-    )
-
-    if st.button(f"Mark {step_id} complete", key=f"complete_{step_id}"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref=f"{step_id}_output_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        sync_session()
-        st.rerun()
+    return False
 
 
 def get_step_output_summary(step_id: str) -> dict:
@@ -932,11 +785,6 @@ def get_step_output_summary(step_id: str) -> dict:
             ]
 
     return summary
-
-
-def render_section_break(title: str):
-    st.markdown("---")
-    st.markdown(f"## {title}")
 
 
 def render_step_context(step_id: str):
@@ -1066,7 +914,40 @@ def render_analysis_summary():
                 with st.expander("Expand", expanded=False):
                     st.write(explanation.expand_text)
 
-# [START PATCH 2: add helpers for mini-chat]
+
+def render_deep_analysis_memo(step_id: str):
+    mode = st.session_state.get("verbosity_mode", DEFAULT_VERBOSITY_MODE)
+    if mode != "deep":
+        return
+
+    memo = build_deep_analysis_memo(step_id)
+
+    render_section_break("Deep Analysis Memo")
+    st.markdown("### Executive Summary")
+    st.write(memo["executive_summary"])
+
+    st.markdown("### What Is Strong")
+    st.write(memo["what_is_strong"])
+
+    st.markdown("### How the Organization Is Likely to Read This")
+    st.write(memo["how_the_role_reads_this"])
+
+    st.markdown("### What Is Under-Signaled or Misframed")
+    st.write(memo["what_is_under_signaled"])
+
+    st.markdown("### Revision Strategy")
+    st.write(memo["revision_strategy"])
+
+    st.markdown("### Context")
+    st.write(memo["context"])
+
+    st.markdown("### Example Reframe")
+    st.write(memo["example_reframe"])
+
+    st.markdown("### Reader Takeaway")
+    st.write(memo["reader_takeaway"])
+
+
 def build_chat_response(step_id: str, user_input: str) -> str:
     q = user_input.strip().lower()
 
@@ -1079,7 +960,7 @@ def build_chat_response(step_id: str, user_input: str) -> str:
                 "a way that feels narrower than the role likely expects. In other words, the issue is less that the candidate lacks substance "
                 "and more that the current materials do not yet help the organization recognize that substance clearly.\n\n"
                 "For example, a line about designing workshops may sound helpful but local. Reframed properly, that same work might signal "
-                'leadership in capability-building, alignment across stakeholder groups, and movement from innovation to implementation.'
+                "leadership in capability-building, alignment across stakeholder groups, and movement from innovation to implementation."
             )
         elif "improvement first" in q or "needs improvement first" in q:
             return (
@@ -1242,8 +1123,7 @@ def build_chat_response(step_id: str, user_input: str) -> str:
         "The eventual goal is not just to answer questions, but to walk the user through why the revision matters and what a stronger version would look like in practice."
     )
 
-# [START PATCH 4: small improvement to render_seeded_prompts]
-# [REPLACE render_seeded_prompts]
+
 def render_seeded_prompts(step_id: str):
     st.markdown("### Explore")
 
@@ -1283,11 +1163,8 @@ def render_seeded_prompts(step_id: str):
     for prompt in prompts.get(step_id, []):
         if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
             st.session_state.selected_seed_prompt_by_step[step_id] = prompt
-            st.session_state.pending_prompt_by_step[step_id] = prompt
-            st.session_state.chat_input_reset_counter_by_step[step_id] = (
-                st.session_state.chat_input_reset_counter_by_step.get(step_id, 0) + 1
-            )
-            st.rerun()
+            st.session_state[f"chat_input_{step_id}"] = prompt
+
 
 def append_chat_turn(step_id: str, role: str, content: str):
     history = st.session_state.chat_history_by_step.setdefault(step_id, [])
@@ -1305,9 +1182,8 @@ def render_chat_history(step_id: str):
             st.markdown(f"**You:** {msg['content']}")
         else:
             st.markdown(f"**Assistant:** {msg['content']}")
-# [END PATCH 2]
 
-# [REPLACE render_chat]
+
 def render_chat(step_id: str):
     st.markdown("### Ask / Explore")
 
@@ -1317,15 +1193,10 @@ def render_chat(step_id: str):
 
     render_chat_history(step_id)
 
-    reset_counter = st.session_state.chat_input_reset_counter_by_step.get(step_id, 0)
-    pending_prompt = st.session_state.pending_prompt_by_step.get(step_id, "")
-    input_key = f"chat_input_{step_id}_{reset_counter}"
-
     with st.form(key=f"chat_form_{step_id}", clear_on_submit=False):
         user_input = st.text_input(
             "Ask a question",
-            value=pending_prompt,
-            key=input_key,
+            key=f"chat_input_{step_id}",
         )
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -1335,254 +1206,16 @@ def render_chat(step_id: str):
 
     if cleared:
         st.session_state.chat_history_by_step[step_id] = []
-        st.session_state.pending_prompt_by_step[step_id] = ""
-        st.session_state.chat_input_reset_counter_by_step[step_id] = reset_counter + 1
+        st.session_state[f"chat_input_{step_id}"] = ""
         st.rerun()
 
     if submitted and user_input.strip():
-        cleaned = user_input.strip()
-        append_chat_turn(step_id, "user", cleaned)
-
-        response = build_chat_response(step_id, cleaned)
-        # later swap this line to generate_llm_chat_response(...)
+        append_chat_turn(step_id, "user", user_input.strip())
+        response = build_chat_response(step_id, user_input.strip())
         append_chat_turn(step_id, "assistant", response)
-
         st.session_state.chat_responses_by_step[step_id] = response
-        st.session_state.pending_prompt_by_step[step_id] = ""
-        st.session_state.chat_input_reset_counter_by_step[step_id] = reset_counter + 1
+        st.session_state[f"chat_input_{step_id}"] = ""
         st.rerun()
-
-def render_match_analysis_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "match_analysis"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    st.markdown("### Analyze Resume Against Role")
-    st.write(
-        "Generate a baseline analysis of how the candidate resume aligns with the target role, "
-        "including language overlap, missing language, and tone/framing differences."
-    )
-
-    if st.button("Run Match Analysis", key="run_match_analysis"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="match_analysis_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.match_analysis = build_placeholder_match_analysis()
-        st.session_state.analysis_explanations = build_placeholder_analysis_explanations()
-        sync_session()
-        st.rerun()
-
-    render_analysis_summary()
-    render_deep_analysis_memo(step_id)
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
-
-
-def render_gap_analysis_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "gap_analysis"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    st.markdown("### Identify Gaps and Revision Priorities")
-    st.write(
-        "Translate the baseline alignment analysis into concrete revision priorities, "
-        "including evidence gaps, language gaps, and framing gaps."
-    )
-
-    if st.button("Generate Gap Analysis", key="run_gap_analysis"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="gap_analysis_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.gap_analysis = build_placeholder_gap_analysis()
-        sync_session()
-        st.rerun()
-
-    render_analysis_summary()
-    render_deep_analysis_memo(step_id)
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
-
-
-def render_summary_revision_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "summary_revision"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Summary Revision Workspace")
-    st.write("Generate a revised professional summary using the alignment and gap analysis.")
-
-    render_section_break("Strengths / Gaps / Improve Now")
-    render_revision_issue_resolution(step_id)
-    render_deep_analysis_memo(step_id)
-    if st.button("Generate Summary Revision", key="run_summary_revision"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="summary_revision_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.revisions = build_placeholder_revisions()
-        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
-        sync_session()
-        st.rerun()
-
-    render_section_break("Revised Output")
-    render_resume_revision_output(step_id)
-
-    render_section_break("Explore This Revision")
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
-
-
-def render_experience_revision_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "experience_revision"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Experience Revision Workspace")
-    st.write(
-        "Generate stronger experience bullet language that better matches the target role’s organizational framing."
-    )
-
-    render_section_break("Strengths / Gaps / Improve Now")
-    render_revision_issue_resolution(step_id)
-    render_deep_analysis_memo(step_id)
-    if st.button("Generate Experience Revisions", key="run_experience_revision"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="experience_revision_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
-        sync_session()
-        st.rerun()
-
-    render_section_break("Revised Output")
-    render_resume_revision_output(step_id)
-
-    render_section_break("Explore This Revision")
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
-
-
-def render_skills_revision_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "skills_revision"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Skills Revision Workspace")
-    st.write(
-        "Generate the final resume redesign package, including revised skills language and compiled revised content."
-    )
-
-    render_section_break("Strengths / Gaps / Improve Now")
-    render_revision_issue_resolution(step_id)
-    render_deep_analysis_memo(step_id)
-
-    if st.button("Generate Resume Redesign", key="run_skills_revision"):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="skills_revision_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
-        st.session_state.cover_letter_strategy = build_placeholder_cover_letter_strategy()
-        sync_session()
-        st.rerun()
-
-    render_section_break("Revised Output")
-    render_resume_revision_output(step_id)
-
-    render_section_break("Explore This Revision")
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
-
-
-def render_cover_letter_generation_step():
-    _, _, router = load_workflow_components()
-    workflow_state = st.session_state.workflow_state
-    step_id = "cover_letter_generation"
-
-    render_step_context(step_id)
-    render_step_output_card(step_id)
-
-    render_section_break("Cover Letter Inputs Available")
-    start_present = bool(st.session_state.cover_letter_start_text.strip())
-    working_present = bool(st.session_state.cover_letter_working_text.strip())
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Starting letter", "Present" if start_present else "Missing")
-    with col2:
-        st.metric("Working letter", "Present" if working_present else "Missing")
-
-    can_generate_letter = start_present or working_present
-
-    if not can_generate_letter:
-        st.info("Provide a starting or working cover letter above to generate a grounded letter revision.")
-
-    render_section_break("Strengths / Gaps / Improve Now")
-    render_revision_issue_resolution(step_id)
-    render_deep_analysis_memo(step_id)
-    render_section_break("Cover Letter Generation Workspace")
-    st.write(
-        "Generate a targeted cover letter using the prior analysis, revision decisions, strategy, and any available cover-letter source materials."
-    )
-
-    if st.button("Generate Cover Letter", key="run_cover_letter_generation", disabled=not can_generate_letter):
-        workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={
-                "cover_letter_start_text": st.session_state.cover_letter_start_text,
-                "cover_letter_working_text": st.session_state.cover_letter_working_text,
-            },
-            output_ref="cover_letter_generation_001",
-        )
-        st.session_state.workflow_state = workflow_state
-        st.session_state.cover_letter = build_placeholder_cover_letter()
-        sync_session()
-        st.rerun()
-
-    render_analysis_summary()
-
-    render_section_break("Explore This Revision")
-    render_seeded_prompts(step_id)
-    render_chat(step_id)
 
 
 def render_revision_issue_resolution(step_id: str):
@@ -1686,6 +1319,524 @@ def render_resume_revision_output(step_id: str):
         st.markdown("**Compiled Resume Redesign Notes**")
         for note in artifact.section_notes:
             st.write(f"- {note}")
+
+
+def render_resume_intake():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+
+    st.markdown("### Resume Intake")
+    st.write("Paste the candidate resume text. This becomes the base candidate context for downstream analysis.")
+
+    st.session_state.resume_text = st.text_area(
+        "Resume text",
+        st.session_state.resume_text,
+        height=220,
+        key="resume_intake_text_area",
+    )
+
+    render_section_break("Cover Letter Intake")
+    st.write(
+        "Provide the starting and working cover-letter materials. "
+        "These are optional for the current scaffold, but should be collected now so later cover-letter revision is grounded in real artifacts."
+    )
+
+    st.session_state.cover_letter_start_text = st.text_area(
+        "Starting cover letter / original source letter",
+        st.session_state.cover_letter_start_text,
+        height=180,
+        key="cover_letter_start_text_area",
+    )
+
+    st.session_state.cover_letter_working_text = st.text_area(
+        "Working cover letter / current draft",
+        st.session_state.cover_letter_working_text,
+        height=180,
+        key="cover_letter_working_text_area",
+    )
+
+    st.markdown("### Intake status")
+    has_resume = bool(st.session_state.resume_text.strip())
+    has_cover_start = bool(st.session_state.cover_letter_start_text.strip())
+    has_cover_working = bool(st.session_state.cover_letter_working_text.strip())
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Resume", "Present" if has_resume else "Missing")
+    with col2:
+        st.metric("Starting letter", "Present" if has_cover_start else "Optional")
+    with col3:
+        st.metric("Working letter", "Present" if has_cover_working else "Optional")
+
+    submit_resume = render_step_action_bar(
+        "resume_intake",
+        primary_label="Save Intake and Continue",
+        primary_key="submit_resume_top",
+        primary_disabled=not has_resume,
+    )
+
+    if submit_resume:
+        workflow_state = router.start_step(workflow_state, "resume_intake")
+        workflow_state = router.complete_step(
+            workflow_state,
+            "resume_intake",
+            payload={
+                "raw_text": st.session_state.resume_text,
+                "resume_raw_text": st.session_state.resume_text,
+                "cover_letter_start_text": st.session_state.cover_letter_start_text,
+                "cover_letter_working_text": st.session_state.cover_letter_working_text,
+            },
+            output_ref="resume_001" if has_resume else None,
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        next_step = get_next_step_id("resume_intake")
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+
+def render_job_description_intake():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+
+    st.markdown("### Job Description Intake")
+    st.write("Paste the target role and organization text. This becomes the organizational context.")
+    st.session_state.jd_text = st.text_area(
+        "Job description text",
+        st.session_state.jd_text,
+        height=220,
+        key="jd_text_area",
+    )
+
+    submit_jd = render_step_action_bar(
+        "job_description_intake",
+        primary_label="Save Job Description and Continue",
+        primary_key="submit_jd_top",
+        primary_disabled=not bool(st.session_state.jd_text.strip()),
+    )
+
+    if submit_jd:
+        workflow_state = router.start_step(workflow_state, "job_description_intake")
+        workflow_state = router.complete_step(
+            workflow_state,
+            "job_description_intake",
+            payload={"raw_text": st.session_state.jd_text},
+            output_ref="jd_001" if st.session_state.jd_text.strip() else None,
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        next_step = get_next_step_id("job_description_intake")
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+
+def render_generic_step_stub(step_id: str):
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+
+    st.markdown(f"### {step_id.replace('_', ' ').title()}")
+    st.write(
+        "This step is now part of the guided UX shell. It can be completed with placeholder "
+        "behavior while engines are added."
+    )
+
+    if st.button(f"Mark {step_id} complete", key=f"complete_{step_id}"):
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref=f"{step_id}_output_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        st.rerun()
+
+
+def render_match_analysis_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "match_analysis"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    st.markdown("### Analyze Resume Against Role")
+    st.write(
+        "Generate a baseline analysis of how the candidate resume aligns with the target role, "
+        "including language overlap, missing language, and tone/framing differences."
+    )
+
+    run_match = render_step_action_bar(
+        step_id,
+        primary_label="Run Match Analysis and Continue",
+        primary_key="run_match_analysis_top",
+    )
+
+    if run_match:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="match_analysis_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.match_analysis = build_placeholder_match_analysis()
+        st.session_state.analysis_explanations = build_placeholder_analysis_explanations()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_analysis_summary()
+    render_deep_analysis_memo(step_id)
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_gap_analysis_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "gap_analysis"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    st.markdown("### Identify Gaps and Revision Priorities")
+    st.write(
+        "Translate the baseline alignment analysis into concrete revision priorities, "
+        "including evidence gaps, language gaps, and framing gaps."
+    )
+
+    run_gap = render_step_action_bar(
+        step_id,
+        primary_label="Generate Gap Analysis and Continue",
+        primary_key="run_gap_analysis_top",
+    )
+
+    if run_gap:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="gap_analysis_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.gap_analysis = build_placeholder_gap_analysis()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_analysis_summary()
+    render_deep_analysis_memo(step_id)
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_summary_revision_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "summary_revision"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Summary Revision Workspace")
+    st.write("Generate a revised professional summary using the alignment and gap analysis.")
+
+    run_summary = render_step_action_bar(
+        step_id,
+        primary_label="Generate Summary Revision and Continue",
+        primary_key="run_summary_revision_top",
+    )
+
+    render_section_break("Strengths / Gaps / Improve Now")
+    render_revision_issue_resolution(step_id)
+    render_deep_analysis_memo(step_id)
+
+    if run_summary:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="summary_revision_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.revisions = build_placeholder_revisions()
+        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_section_break("Revised Output")
+    render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_experience_revision_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "experience_revision"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Experience Revision Workspace")
+    st.write(
+        "Generate stronger experience bullet language that better matches the target role’s organizational framing."
+    )
+
+    run_experience = render_step_action_bar(
+        step_id,
+        primary_label="Generate Experience Revisions and Continue",
+        primary_key="run_experience_revision_top",
+    )
+
+    render_section_break("Strengths / Gaps / Improve Now")
+    render_revision_issue_resolution(step_id)
+    render_deep_analysis_memo(step_id)
+
+    if run_experience:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="experience_revision_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_section_break("Revised Output")
+    render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_skills_revision_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "skills_revision"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Skills Revision Workspace")
+    st.write(
+        "Generate the final resume redesign package, including revised skills language and compiled revised content."
+    )
+
+    run_skills = render_step_action_bar(
+        step_id,
+        primary_label="Generate Resume Redesign and Continue",
+        primary_key="run_skills_revision_top",
+    )
+
+    render_section_break("Strengths / Gaps / Improve Now")
+    render_revision_issue_resolution(step_id)
+    render_deep_analysis_memo(step_id)
+
+    if run_skills:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="skills_revision_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
+        st.session_state.cover_letter_strategy = build_placeholder_cover_letter_strategy()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_section_break("Revised Output")
+    render_resume_revision_output(step_id)
+
+    render_section_break("Explore This Revision")
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_cover_letter_generation_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "cover_letter_generation"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Cover Letter Inputs Available")
+    start_present = bool(st.session_state.cover_letter_start_text.strip())
+    working_present = bool(st.session_state.cover_letter_working_text.strip())
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Starting letter", "Present" if start_present else "Missing")
+    with col2:
+        st.metric("Working letter", "Present" if working_present else "Missing")
+
+    can_generate_letter = start_present or working_present
+
+    if not can_generate_letter:
+        st.info("Provide a starting or working cover letter above to generate a grounded letter revision.")
+
+    run_letter = render_step_action_bar(
+        step_id,
+        primary_label="Generate Cover Letter and Continue",
+        primary_key="run_cover_letter_generation_top",
+        primary_disabled=not can_generate_letter,
+    )
+
+    render_section_break("Strengths / Gaps / Improve Now")
+    render_revision_issue_resolution(step_id)
+    render_deep_analysis_memo(step_id)
+
+    render_section_break("Cover Letter Generation Workspace")
+    st.write(
+        "Generate a targeted cover letter using the prior analysis, revision decisions, strategy, and any available cover-letter source materials."
+    )
+
+    if run_letter:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={
+                "cover_letter_start_text": st.session_state.cover_letter_start_text,
+                "cover_letter_working_text": st.session_state.cover_letter_working_text,
+            },
+            output_ref="cover_letter_generation_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        st.session_state.cover_letter = build_placeholder_cover_letter()
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_analysis_summary()
+
+    render_section_break("Explore This Revision")
+    render_seeded_prompts(step_id)
+    render_chat(step_id)
+
+
+def render_final_review_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "final_review"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Final Review")
+    st.write("Generate a final integrative review of the revised application materials.")
+
+    run_final_review = render_step_action_bar(
+        step_id,
+        primary_label="Generate Final Review and Continue",
+        primary_key="run_final_review_top",
+    )
+
+    if run_final_review:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="final_review_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        next_step = get_next_step_id(step_id)
+        if next_step:
+            st.session_state.requested_step_id = next_step
+        st.rerun()
+
+    render_deep_analysis_memo(step_id)
+
+    memo = build_final_review_memo()
+    st.markdown("### How the Application Now Reads")
+    st.write(memo["application_read"])
+
+    st.markdown("### Strongest Differentiators")
+    for item in memo["strongest_differentiators"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Remaining Risks")
+    for item in memo["remaining_risks"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Final Edit Priorities")
+    for item in memo["final_edit_priorities"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Submission Readiness")
+    st.write(memo["submission_readiness"])
+
+
+def render_export_bundle_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "export_bundle"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Export Bundle")
+    st.write("Assemble copy-ready outputs for resume revision, cover letter, and final review.")
+
+    run_export = render_step_action_bar(
+        step_id,
+        primary_label="Assemble Export Bundle",
+        primary_key="run_export_bundle_top",
+    )
+
+    if run_export:
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="export_bundle_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        st.rerun()
+
+    export_text = build_export_bundle_text()
+    st.text_area(
+        "Copy-ready export bundle",
+        value=export_text,
+        height=420,
+        key="export_bundle_text",
+    )
+
 
 def render_current_step():
     current_step_id = st.session_state.workflow_state.current_step_id
@@ -1860,6 +2011,7 @@ def main():
             cover_letter=st.session_state.cover_letter,
             generated_artifacts=st.session_state.generated_artifacts,
         )
+
 
 if __name__ == "__main__":
     main()
