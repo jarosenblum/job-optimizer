@@ -170,13 +170,16 @@ def build_placeholder_gap_analysis() -> GapAnalysis:
 
 def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
     revised_summary = (
-        "Strategic educator and program leader with experience designing AI-enabled initiatives, "
-        "aligning stakeholders, and driving innovation across instructional and organizational contexts."
+        "Strategic educator and program leader with experience designing AI-enabled initiatives, aligning stakeholders, "
+        "and translating innovation into practical implementation across instructional and organizational contexts."
     )
 
     revised_experience_bullets = [
         "Led cross-stakeholder AI adoption efforts by translating emerging capabilities into practical programs aligned with organizational priorities.",
         "Designed and implemented initiatives that connected innovation strategy to operational execution and long-term program impact.",
+        "Developed guidance, workshops, and structured resources that increased organizational legibility and supported broader adoption of new capabilities.",
+        "Bridged communication across technical, instructional, and leadership-facing audiences to move projects from concept to execution.",
+        "Contributed to program and documentation systems that improved consistency, clarity, and scalability of implementation work.",
     ]
 
     revised_skills_section = [
@@ -185,6 +188,8 @@ def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
         "AI adoption and implementation",
         "Organizational communication",
         "Innovation leadership",
+        "Documentation and systems thinking",
+        "Change-oriented initiative support",
     ]
 
     section_notes = [
@@ -193,14 +198,26 @@ def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
         "Skills revised to better reflect role language and organizational legibility.",
     ]
 
-    full_revision_text = (
-        "REVISED SUMMARY\n"
-        f"{revised_summary}\n\n"
-        "REVISED EXPERIENCE BULLETS\n"
-        + "\n".join(f"- {b}" for b in revised_experience_bullets)
-        + "\n\nREVISED SKILLS SECTION\n"
-        + "\n".join(f"- {s}" for s in revised_skills_section)
-    )
+    full_revision_text = f"""
+REVISED PROFESSIONAL SUMMARY
+{revised_summary}
+
+REVISED EXPERIENCE
+- {revised_experience_bullets[0]}
+- {revised_experience_bullets[1]}
+- {revised_experience_bullets[2]}
+- {revised_experience_bullets[3]}
+- {revised_experience_bullets[4]}
+
+REVISED SKILLS
+- {revised_skills_section[0]}
+- {revised_skills_section[1]}
+- {revised_skills_section[2]}
+- {revised_skills_section[3]}
+- {revised_skills_section[4]}
+- {revised_skills_section[5]}
+- {revised_skills_section[6]}
+""".strip()
 
     return ResumeRevisionArtifact(
         resume_revision_id="rra_001",
@@ -210,7 +227,6 @@ def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
         section_notes=section_notes,
         full_revision_text=full_revision_text,
     )
-
 
 def build_placeholder_revisions() -> list[RevisionSuggestion]:
     return [
@@ -380,157 +396,132 @@ def build_placeholder_analysis_explanations() -> dict[str, AnalysisExplanation]:
     }
 
 def build_deep_analysis_memo(step_id: str) -> dict:
-    if step_id == "match_analysis":
-        return {
-            "executive_summary": (
-                "The candidate appears substantively relevant to the role, but the current materials do not yet make that relevance maximally legible in the organization’s preferred language."
-            ),
-            "what_is_strong": (
-                "The strongest signals already present are evidence of program design, cross-stakeholder collaboration, and innovation-oriented work. These suggest genuine fit rather than superficial overlap."
-            ),
-            "how_the_role_reads_this": (
-                "The organization is likely to read the current materials as thoughtful and competent, but not yet as fully strategic, transformation-oriented, or clearly scaled."
-            ),
-            "what_is_under_signaled": (
-                "The under-signaled layer is interpretive rather than factual. Transformation, organizational leadership, and broader institutional value are not yet foregrounded strongly enough."
-            ),
-            "revision_strategy": (
-                "The right move is not to invent stronger evidence, but to reframe valid evidence so it reads as more legible to the role’s priorities and organizational language."
-            ),
-            "artifact_implication": (
-                "The revised summary and top bullets should immediately signal leadership, organizational contribution, and transformation relevance."
-            ),
-        }
-
-    if step_id == "gap_analysis":
-        return {
-            "executive_summary": (
-                "The leading gaps appear to be representational rather than purely experiential."
-            ),
-            "what_is_strong": (
-                "The candidate likely already has relevant substance. The issue is not total absence of fit, but incomplete signaling of that fit."
-            ),
-            "how_the_role_reads_this": (
-                "The role is likely to reward language that names organizational value, scale, coordination, and transformation more explicitly."
-            ),
-            "what_is_under_signaled": (
-                "Broader impact, strategic framing, and transformation-oriented language remain thinner than they should be."
-            ),
-            "revision_strategy": (
-                "Prioritize changes that alter interpretation: summary first, then strongest experience bullets, then skills framing."
-            ),
-            "artifact_implication": (
-                "Each revised artifact should help the organization recognize existing candidate strengths more quickly and more clearly."
-            ),
-        }
-
     if step_id == "summary_revision":
         return {
             "executive_summary": (
-                "The summary should function as the lens through which the entire resume is read."
+                "The summary is doing more than introducing the candidate; it is defining how the rest of the resume will be interpreted. "
+                "At present, the candidate appears to have relevant substance, but the summary does not yet fully direct the reader to interpret that substance as strategic, organization-facing, and transformation-capable."
             ),
             "what_is_strong": (
-                "The candidate already appears to have substance worth foregrounding, especially where prior work suggests leadership, translation, and initiative-building."
+                "What is already promising is that the candidate seems to have real substance to foreground: initiative-building, collaboration across stakeholders, and work that connects ideas to implementation. "
+                "Those are not minor traits. They are often the raw material from which a stronger leadership narrative can be built."
             ),
             "how_the_role_reads_this": (
-                "Without stronger framing, the organization may interpret the summary as competent but narrower in scope than the role requires."
+                "A hiring reader in this role is likely to look for immediate signals of scope, relevance, and fit. "
+                "If the summary sounds thoughtful but generic, the rest of the resume may be interpreted too narrowly—even if the experience itself is stronger than that reading suggests."
             ),
             "what_is_under_signaled": (
-                "Scale, transformation, and explicit organizational relevance remain under-signaled."
+                "The summary currently under-signals transformation, organizational scale, and explicit contribution to broader institutional or business goals. "
+                "The problem is not necessarily lack of evidence; it is that the framing does not yet help the reader classify the candidate in the right category."
             ),
             "revision_strategy": (
-                "Revise the summary so it positions the candidate as strategic, organization-aware, and capable of leading change-oriented work."
+                "The revision should move beyond a descriptive summary of experience and become an interpretive summary of value. "
+                "It should name leadership, alignment, innovation, and organization-level contribution in a way that still feels grounded in the candidate’s actual record."
             ),
-            "artifact_implication": (
-                "The revised summary should prepare the reader to interpret later bullets as evidence of leadership and broader contribution."
+            "context": (
+                "This matters because summaries are often read first and remembered disproportionately. "
+                "They shape the lens through which later bullets are processed. A stronger summary can therefore improve the perceived strength of the whole resume without changing the underlying facts."
+            ),
+            "example_reframe": (
+                "For example, a weaker summary might say the candidate has experience in program development and AI innovation. "
+                "A stronger summary would reinterpret that same evidence as leadership in designing AI-enabled initiatives, aligning stakeholders, and translating innovation into organizationally relevant action."
+            ),
+            "reader_takeaway": (
+                "The goal is for the reader to finish the summary already primed to see the candidate as strategically relevant, not merely competent."
             ),
         }
 
     if step_id == "experience_revision":
         return {
             "executive_summary": (
-                "Experience bullets are where abstract fit becomes evidence."
+                "The experience section is where claimed fit becomes believable. Right now, the likely issue is not absence of meaningful work, but that the existing bullets may read too locally or too operationally."
             ),
             "what_is_strong": (
-                "The underlying work appears meaningful: coordination, initiative design, implementation support, and practical execution."
+                "The candidate appears to have experience that can support a stronger case: initiative design, coordination, implementation support, and practical delivery. "
+                "These can all become persuasive if framed as evidence of broader value rather than isolated tasks."
             ),
             "how_the_role_reads_this": (
-                "If the bullets remain too task-level, the organization may misread the candidate as narrower in scope than they actually are."
+                "A reader will often scan bullets for signals of scale, leadership, and organizational contribution. "
+                "If the bullets focus only on what was done, rather than why it mattered, the organization may miss the broader relevance."
             ),
             "what_is_under_signaled": (
-                "Leadership, translation, institutional contribution, and broader organizational relevance are not yet consistently visible."
+                "Under-signaled elements include scope, translation across groups, leadership in moving work forward, and visible connection between activity and impact."
             ),
             "revision_strategy": (
-                "Rewrite bullets to emphasize alignment, scope, translation, impact, and organizational contribution rather than only local execution."
+                "The revision should shift bullets from task-reporting toward evidence-framing. "
+                "That means emphasizing coordination, influence, design decisions, adoption, outcomes, and organizational relevance."
             ),
-            "artifact_implication": (
-                "The revised bullets should make the candidate’s work read as legible evidence of broader strategic value."
+            "context": (
+                "This is especially important because many candidates have good experience that reads as smaller than it really is. "
+                "The difference often comes down to whether the bullet presents work as activity or as contribution."
+            ),
+            "example_reframe": (
+                "For example, instead of saying the candidate designed workshops and supported adoption, a stronger bullet would show that they led or coordinated adoption efforts, translated emerging tools into practical use, and aligned implementation with institutional priorities."
+            ),
+            "reader_takeaway": (
+                "The reader should come away feeling that the candidate has already done work that resembles the kind of contribution this role needs."
             ),
         }
 
     if step_id == "skills_revision":
         return {
             "executive_summary": (
-                "The skills section acts as a compressed interpretive cue rather than the full story."
+                "The skills section is a compressed interpretive signal. It will not carry the whole application, but it strongly shapes first impressions."
             ),
             "what_is_strong": (
-                "Several existing skills likely already align at the substance level, especially around program design, collaboration, and practical implementation."
+                "The candidate likely already has several relevant skills at the substance level, especially around design, collaboration, implementation, and innovation."
             ),
             "how_the_role_reads_this": (
-                "A hiring reader may use this section as a quick scan for fit, so language choices here disproportionately affect first impressions."
+                "A hiring reader may use the skills section as a fast proxy for alignment. "
+                "If the language is too generic, the candidate may appear weaker in fit than they actually are."
             ),
             "what_is_under_signaled": (
-                "Role-relevant language around transformation, organizational communication, and cross-functional impact may still be too muted."
+                "Role-relevant language such as transformation, cross-functional alignment, organizational communication, and strategic implementation may still be muted."
             ),
             "revision_strategy": (
-                "Surface skills using the organization’s own vocabulary where appropriate, while keeping them grounded in actual candidate evidence."
+                "The skills section should be revised to reinforce the same narrative built elsewhere. "
+                "It should not feel like a disconnected keyword bank; it should confirm the leadership and impact framing already established in the summary and experience sections."
             ),
-            "artifact_implication": (
-                "The revised skills section should confirm the broader narrative already established by the summary and experience sections."
+            "context": (
+                "This matters because recruiters and hiring managers often scan this section quickly. "
+                "That makes it one of the highest-leverage places to improve legibility without overstating anything."
+            ),
+            "example_reframe": (
+                "For example, instead of generic labels like communication or program support, stronger phrasing might foreground organizational communication, stakeholder alignment, strategic program design, or AI adoption and implementation."
+            ),
+            "reader_takeaway": (
+                "The reader should be able to skim the skills section and see language that feels native to the role."
             ),
         }
 
     if step_id == "cover_letter_generation":
         return {
             "executive_summary": (
-                "The letter should function as an interpretive bridge between candidate evidence and organizational need."
+                "The cover letter should not merely repeat the resume. Its job is to interpret the candidate for this specific organizational context."
             ),
             "what_is_strong": (
-                "The application already appears to have material that can support a persuasive narrative of fit."
+                "The candidate appears to have substance that can support a strong letter, especially where experience suggests initiative-building, translation of innovation into action, and collaboration across groups."
             ),
             "how_the_role_reads_this": (
-                "A strong organization-facing letter will look for explicit alignment, contextual relevance, and evidence of contribution rather than generic enthusiasm."
+                "The organization will likely read the letter less as a catalogue of facts and more as a framing statement: why this candidate, why this role, why now."
             ),
             "what_is_under_signaled": (
-                "The bridge between candidate substance and organizational need is still thinner than it should be."
+                "The current application may still under-connect candidate evidence to organizational need. "
+                "That bridge is exactly what the letter must strengthen."
             ),
             "revision_strategy": (
-                "Use the letter to connect strongest candidate evidence to the organization’s language and priorities with more deliberate framing."
+                "The letter should foreground the strongest candidate themes, name the most relevant priorities of the role, and explicitly connect the two. "
+                "It should sound interpretive, not repetitive."
             ),
-            "artifact_implication": (
-                "The final letter should read less like repetition of the resume and more like an explanation of why this candidate matters in this context."
+            "context": (
+                "A strong letter adds value when it helps the organization understand how to read the resume. "
+                "It becomes weak when it simply restates accomplishments without contextualizing them."
             ),
-        }
-
-    if step_id == "final_review":
-        return {
-            "executive_summary": (
-                "Final review should synthesize the application as a whole rather than repeat earlier diagnostics."
+            "example_reframe": (
+                "For example, rather than repeating that the candidate worked on AI-related initiatives, the letter should explain that the candidate has experience translating emerging capabilities into usable programs and aligning innovation with organizational priorities."
             ),
-            "what_is_strong": (
-                "The revised materials are now more aligned and more legible than the original intake materials."
-            ),
-            "how_the_role_reads_this": (
-                "At this stage, the organization is more likely to see clear alignment if framing remains consistent across the resume and letter."
-            ),
-            "what_is_under_signaled": (
-                "Remaining weaknesses are likely to be in emphasis and consistency rather than total absence of fit."
-            ),
-            "revision_strategy": (
-                "Use final review to tighten emphasis, remove drift, and make sure the strongest evidence appears early."
-            ),
-            "artifact_implication": (
-                "The final application package should now feel coherent, deliberate, and context-aware."
+            "reader_takeaway": (
+                "The reader should finish the letter understanding not just what the candidate has done, but why that experience matters in this exact setting."
             ),
         }
 
@@ -540,7 +531,9 @@ def build_deep_analysis_memo(step_id: str) -> dict:
         "how_the_role_reads_this": "Interpretation depends on framing.",
         "what_is_under_signaled": "Some signals are not yet fully legible.",
         "revision_strategy": "Revise toward stronger alignment.",
-        "artifact_implication": "The next artifact should reflect that revised interpretation.",
+        "context": "The point is to guide how the reader classifies the candidate.",
+        "example_reframe": "A stronger version should reinterpret real evidence rather than invent new evidence.",
+        "reader_takeaway": "The next artifact should make the candidate easier to read as relevant.",
     }
 
 
@@ -567,8 +560,14 @@ def render_deep_analysis_memo(step_id: str):
     st.markdown("### Revision Strategy")
     st.write(memo["revision_strategy"])
 
-    st.markdown("### Artifact Implication")
-    st.write(memo["artifact_implication"])
+    st.markdown("### Context")
+    st.write(memo["context"])
+
+    st.markdown("### Example Reframe")
+    st.write(memo["example_reframe"])
+
+    st.markdown("### Reader Takeaway")
+    st.write(memo["reader_takeaway"])
 
 def build_final_review_memo() -> dict:
     return {
@@ -647,7 +646,7 @@ def build_export_bundle_text() -> str:
     parts: list[str] = []
 
     if artifact:
-        parts.append("REVISED SUMMARY")
+        parts.append("FULL REVISED SUMMARY")
         parts.append(artifact.revised_summary or "")
         parts.append("")
 
@@ -1119,123 +1118,102 @@ def render_chat(step_id: str):
     if not user_input:
         return
 
+    q = user_input.strip().lower()
     response = ""
 
-    if step_id == "match_analysis":
-        if "strongest parts" in user_input.lower() or "good" in user_input.lower():
+    if step_id == "gap_analysis":
+        if "main gaps" in q:
             response = (
-                "The strongest parts of the resume appear to be the substantive evidence already present: program design, "
-                "cross-stakeholder collaboration, and innovation-oriented work. These are not minor strengths; they suggest that the candidate already has a meaningful basis for fit. "
-                "What makes them easy to miss is not weakness in the underlying experience, but the way that experience is currently framed. At the moment, the materials seem to communicate "
-                "competence and seriousness more than strategic or transformation-oriented identity. So the good news is that the resume appears to have real material to work with."
+                "The main gaps are not simply missing words; they are gaps in how the candidate’s value is being represented. "
+                "First, the materials underuse language associated with transformation and scale. "
+                "Second, the framing does not always help the reader see broader organizational contribution. "
+                "Third, some evidence that may actually be relevant is still presented in a way that feels narrower than the role likely expects. "
+                "In other words, the issue is less 'the candidate lacks substance' and more 'the current materials do not yet help the organization recognize that substance clearly.'"
             )
-        elif "gap" in user_input.lower() or "under-communicated" in user_input.lower():
+        elif "improvement first" in q or "needs improvement first" in q:
             response = (
-                "What is under-communicated is not merely a keyword layer, but an interpretive layer. The candidate’s work may already map to the role, "
-                "but the current materials do not yet make that fit obvious in the language the organization appears to value. In particular, transformation, scale, and organizational leadership "
-                "are not yet foregrounded strongly enough. That means the revisions should focus on making real strengths more legible, rather than inventing new strengths."
+                "The first improvement should be the one that changes overall interpretation most quickly: the summary. "
+                "That is because the summary sets the lens for everything that follows. After that, the top experience bullets should be revised so they reinforce the same strategic framing. "
+                "Only then should the skills section be tightened to confirm the language of fit. "
+                "This order matters because it moves from broad interpretive framing to evidence to quick-scan reinforcement."
             )
-        else:
+        elif "framing issues" in q:
             response = (
-                "At this stage, the strongest interpretation is that the candidate already has relevant substance, but the current materials do not yet make that substance fully legible "
-                "in the organization’s preferred language. The next step is less about inventing stronger claims and more about reframing valid evidence so it is recognized as relevant by this audience."
-            )
-
-    elif step_id == "gap_analysis":
-        if "good" in user_input.lower():
-            response = (
-                "The encouraging point in the gap analysis is that the leading issues seem to be representational rather than purely experiential. "
-                "That means the candidate may already possess much of the right substance. The problem is that the current framing does not consistently surface that substance in a way that matches the role’s own definitions of value."
-            )
-        elif "improvement" in user_input.lower() or "gap" in user_input.lower():
-            response = (
-                "The most important improvements are the ones that change how the organization interprets the candidate. "
-                "Language such as transformation, organizational impact, and scale should be treated as meaning-bearing signals, not decorative add-ons. "
-                "The candidate likely needs clearer strategic framing, stronger narration of impact, and more explicit alignment with the organization’s priorities."
+                "A framing issue is different from an evidence issue. An evidence issue would mean the candidate has not done the relevant work. "
+                "A framing issue means the relevant work may be present, but it is not being presented in a way that the organization will classify correctly. "
+                "For example, work that demonstrates coordination, translation, and institutional contribution might still be described as task execution unless the bullet is rewritten to highlight scope and value."
             )
         else:
             response = (
-                "The leading gaps are interpretive, not merely semantic. The candidate’s materials appear to contain meaningful evidence of fit, but the way that evidence is currently framed "
-                "does not consistently match how the target role describes value."
+                "The leading gaps are interpretive, not merely semantic. The candidate’s materials appear to contain meaningful evidence of fit, but the way that evidence is currently framed does not consistently match how the target role describes value."
             )
 
     elif step_id == "summary_revision":
-        if "good" in user_input.lower():
+        if "already good" in q:
             response = (
-                "What is good about the summary direction is that the revision is beginning to reposition the candidate as a strategic and organizationally relevant actor rather than only a capable practitioner. "
-                "That is important because the summary functions as the lens for reading the rest of the resume. When it works well, it prepares the reader to interpret downstream evidence as leadership and organizational contribution."
+                "What is already good about the summary direction is that it begins moving the candidate out of a narrow practitioner frame and into a broader strategic frame. "
+                "That is useful because the role likely expects the candidate to look organization-aware, not merely competent. "
+                "The revised direction is therefore stronger because it starts foregrounding leadership, stakeholder alignment, and innovation in a more role-legible way."
             )
-        elif "improve" in user_input.lower() or "reframed" in user_input.lower():
+        elif "still needs improvement" in q:
             response = (
-                "What still needs improvement in the summary is the explicit signaling of scale, transformation, and organizational relevance. "
-                "The summary should not merely state experience; it should guide the reader toward the correct interpretation of that experience. "
-                "That means foregrounding leadership, stakeholder alignment, and broader impact in a way that feels credible and grounded."
+                "What still needs improvement in the summary is explicit signaling of scale, transformation, and organizational contribution. "
+                "Right now, the revised direction is better, but it could still go further in helping the reader understand not just what the candidate has done, but why that work should count as strategically relevant in this setting. "
+                "A stronger summary should make the reader think: this person has already operated in ways that matter to our priorities."
+            )
+        elif "reframed" in q:
+            response = (
+                "The summary should be reframed as a statement of value, not merely a statement of background. "
+                "That means leading with the kind of contribution the candidate brings—strategic design, stakeholder alignment, innovation translated into action—rather than only naming domains of experience. "
+                "For example, instead of reading as 'experienced educator with AI interests,' it should read more like 'strategic program leader who has designed AI-enabled initiatives, aligned stakeholders, and connected innovation to implementation.'"
+            )
+        elif "example" in q:
+            response = (
+                "Here is the type of reframe the app should eventually generate: a weaker summary might say the candidate has experience in education, technology, and innovation. "
+                "A stronger version would say the candidate has led or designed initiatives that connect innovation to organizational goals, align stakeholders, and create scalable program impact. "
+                "The difference is not exaggeration; it is interpretive clarity."
             )
         else:
             response = (
-                "The summary is not just a short introduction; it is the framing device through which the rest of the resume is read. "
-                "A strong summary here helps the reader interpret later experience bullets through the right lens from the start."
+                "The summary is not just a short introduction; it is the framing device through which the rest of the resume is read. A strong summary helps the reader interpret later bullets through the right lens from the start."
             )
 
-    elif step_id == "experience_revision":
-        if "good" in user_input.lower():
+    elif step_id == "match_analysis":
+        if "strongest parts" in q:
             response = (
-                "The strongest thing about the experience evidence is that it likely already contains meaningful work: coordination, initiative design, adoption support, and practical implementation. "
-                "Those are valuable. What is needed is a stronger presentation of those same experiences as evidence of broader leadership, alignment, and organizational contribution."
+                "The strongest parts of the resume appear to be the evidence of meaningful work already present: program design, collaboration across stakeholders, and innovation-oriented implementation. "
+                "Those are strong because they suggest real fit potential. The problem is not that these elements are absent, but that they are not yet being interpreted at the highest-value level the role seems to reward."
             )
-        elif "under-signal" in user_input.lower() or "improve" in user_input.lower():
+        elif "under-communicated" in q:
             response = (
-                "The bullets currently risk under-signaling scope and significance. When experience reads as task-level or purely local, the organization may miss broader relevance. "
-                "The revision should therefore emphasize translation, coordination, leadership, adoption, and institutional value, not just execution."
+                "What is under-communicated is the organizational meaning of the candidate’s experience. "
+                "The current materials may show thoughtful and relevant work, but they do not yet foreground scale, transformation, or broader institutional relevance strongly enough. "
+                "That means the application risks being read as capable but narrower than it should be."
             )
-        else:
+        elif "interpret" in q:
             response = (
-                "Experience bullets are where abstract fit becomes evidence. The revision work here needs to focus on framing as much as wording so the candidate’s work becomes more legible to the organization’s priorities."
+                "The organization would likely interpret the candidate as credible and relevant in substance, but not yet optimally framed. "
+                "The reader may see someone with real experience, but may not immediately classify that experience as strategic, transformation-oriented, or broad enough in scope unless the framing is strengthened."
             )
-
-    elif step_id == "skills_revision":
-        if "align" in user_input.lower() or "good" in user_input.lower():
+        elif "example" in q:
             response = (
-                "Some skills already align well, especially where they suggest program design, collaboration, and practical implementation. "
-                "The task now is to make the section more legible in the organization’s own language so those strengths are recognized more quickly."
-            )
-        elif "missing" in user_input.lower() or "improve" in user_input.lower():
-            response = (
-                "What is missing is not simply more content, but more targeted framing. If the role emphasizes transformation, organizational impact, or cross-functional alignment, "
-                "the skills section should reinforce those ideas directly so the resume’s quick-scan layer matches the deeper narrative."
+                "For example, if a bullet says the candidate designed workshops and supported adoption, a reader may interpret that as useful but local. "
+                "If the same evidence is reframed as leading adoption efforts, translating emerging capabilities into practical programs, and aligning implementation with organizational priorities, the reader is far more likely to see strategic fit."
             )
         else:
             response = (
-                "The skills section functions as a compressed interpretive signal. It should confirm the broader story told by the summary and experience sections."
-            )
-
-    elif step_id == "cover_letter_generation":
-        if "good" in user_input.lower():
-            response = (
-                "What is promising about the current letter direction is that it already points toward strategic fit and organizational relevance. "
-                "That gives you a foundation. The next step is to make that fit feel more specifically grounded in the candidate’s evidence and the organization’s priorities."
-            )
-        elif "gap" in user_input.lower() or "differ" in user_input.lower() or "improve" in user_input.lower():
-            response = (
-                "The cover letter should not merely restate the resume. Its main job is interpretive: it should explain why this candidate’s experience matters in this context. "
-                "What still needs improvement is the bridge between evidence and organizational need. The letter should foreground the strongest parts of the candidate’s background, "
-                "name the most relevant themes in the role, and connect those two with more deliberate framing."
-            )
-        else:
-            response = (
-                "The cover letter should function as an interpretive bridge between the candidate’s evidence and the organization’s priorities."
+                "At this stage, the strongest interpretation is that the candidate already has relevant substance, but the current materials do not yet make that substance fully legible in the organization’s preferred language."
             )
 
     else:
         response = (
-            "This step should help the user understand what is already strong, what gaps remain, and what should be improved now."
+            "This area should explain what is already strong, what is currently weak or under-signaled, and how the next revision should change the reader’s interpretation. "
+            "The eventual goal is not just to answer questions, but to walk the user through why the revision matters and what a stronger version would look like in practice."
         )
 
     st.session_state.chat_responses_by_step[step_id] = response
-
     st.write("**Response:**")
     st.write(response)
-
 
 def render_match_analysis_step():
     _, _, router = load_workflow_components()
@@ -1545,7 +1523,7 @@ def render_resume_revision_output(step_id: str):
         st.text_area(
             "Summary revision",
             value=artifact.revised_summary or "",
-            height=160,
+            height=180,
             key="summary_revision_output",
         )
 
@@ -1555,18 +1533,17 @@ def render_resume_revision_output(step_id: str):
         st.text_area(
             "Experience bullet revisions",
             value=bullets_text,
-            height=220,
+            height=260,
             key="experience_revision_output",
         )
 
     elif step_id == "skills_revision":
-        st.markdown("**Revised Skills Section**")
-        skills_text = "\n".join(f"- {s}" for s in artifact.revised_skills_section)
+        st.markdown("**Compiled Resume Redesign**")
         st.text_area(
-            "Skills revision",
-            value=skills_text,
-            height=200,
-            key="skills_revision_output",
+            "Compiled full resume redesign",
+            value=artifact.full_revision_text,
+            height=420,
+            key="skills_revision_full_output",
         )
 
         st.markdown("**Compiled Resume Redesign Notes**")
