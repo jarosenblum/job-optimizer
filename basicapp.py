@@ -379,6 +379,330 @@ def build_placeholder_analysis_explanations() -> dict[str, AnalysisExplanation]:
         ),
     }
 
+def build_deep_analysis_memo(step_id: str) -> dict:
+    if step_id == "match_analysis":
+        return {
+            "executive_summary": (
+                "The candidate appears substantively relevant to the role, but the current materials do not yet make that relevance maximally legible in the organization’s preferred language."
+            ),
+            "what_is_strong": (
+                "The strongest signals already present are evidence of program design, cross-stakeholder collaboration, and innovation-oriented work. These suggest genuine fit rather than superficial overlap."
+            ),
+            "how_the_role_reads_this": (
+                "The organization is likely to read the current materials as thoughtful and competent, but not yet as fully strategic, transformation-oriented, or clearly scaled."
+            ),
+            "what_is_under_signaled": (
+                "The under-signaled layer is interpretive rather than factual. Transformation, organizational leadership, and broader institutional value are not yet foregrounded strongly enough."
+            ),
+            "revision_strategy": (
+                "The right move is not to invent stronger evidence, but to reframe valid evidence so it reads as more legible to the role’s priorities and organizational language."
+            ),
+            "artifact_implication": (
+                "The revised summary and top bullets should immediately signal leadership, organizational contribution, and transformation relevance."
+            ),
+        }
+
+    if step_id == "gap_analysis":
+        return {
+            "executive_summary": (
+                "The leading gaps appear to be representational rather than purely experiential."
+            ),
+            "what_is_strong": (
+                "The candidate likely already has relevant substance. The issue is not total absence of fit, but incomplete signaling of that fit."
+            ),
+            "how_the_role_reads_this": (
+                "The role is likely to reward language that names organizational value, scale, coordination, and transformation more explicitly."
+            ),
+            "what_is_under_signaled": (
+                "Broader impact, strategic framing, and transformation-oriented language remain thinner than they should be."
+            ),
+            "revision_strategy": (
+                "Prioritize changes that alter interpretation: summary first, then strongest experience bullets, then skills framing."
+            ),
+            "artifact_implication": (
+                "Each revised artifact should help the organization recognize existing candidate strengths more quickly and more clearly."
+            ),
+        }
+
+    if step_id == "summary_revision":
+        return {
+            "executive_summary": (
+                "The summary should function as the lens through which the entire resume is read."
+            ),
+            "what_is_strong": (
+                "The candidate already appears to have substance worth foregrounding, especially where prior work suggests leadership, translation, and initiative-building."
+            ),
+            "how_the_role_reads_this": (
+                "Without stronger framing, the organization may interpret the summary as competent but narrower in scope than the role requires."
+            ),
+            "what_is_under_signaled": (
+                "Scale, transformation, and explicit organizational relevance remain under-signaled."
+            ),
+            "revision_strategy": (
+                "Revise the summary so it positions the candidate as strategic, organization-aware, and capable of leading change-oriented work."
+            ),
+            "artifact_implication": (
+                "The revised summary should prepare the reader to interpret later bullets as evidence of leadership and broader contribution."
+            ),
+        }
+
+    if step_id == "experience_revision":
+        return {
+            "executive_summary": (
+                "Experience bullets are where abstract fit becomes evidence."
+            ),
+            "what_is_strong": (
+                "The underlying work appears meaningful: coordination, initiative design, implementation support, and practical execution."
+            ),
+            "how_the_role_reads_this": (
+                "If the bullets remain too task-level, the organization may misread the candidate as narrower in scope than they actually are."
+            ),
+            "what_is_under_signaled": (
+                "Leadership, translation, institutional contribution, and broader organizational relevance are not yet consistently visible."
+            ),
+            "revision_strategy": (
+                "Rewrite bullets to emphasize alignment, scope, translation, impact, and organizational contribution rather than only local execution."
+            ),
+            "artifact_implication": (
+                "The revised bullets should make the candidate’s work read as legible evidence of broader strategic value."
+            ),
+        }
+
+    if step_id == "skills_revision":
+        return {
+            "executive_summary": (
+                "The skills section acts as a compressed interpretive cue rather than the full story."
+            ),
+            "what_is_strong": (
+                "Several existing skills likely already align at the substance level, especially around program design, collaboration, and practical implementation."
+            ),
+            "how_the_role_reads_this": (
+                "A hiring reader may use this section as a quick scan for fit, so language choices here disproportionately affect first impressions."
+            ),
+            "what_is_under_signaled": (
+                "Role-relevant language around transformation, organizational communication, and cross-functional impact may still be too muted."
+            ),
+            "revision_strategy": (
+                "Surface skills using the organization’s own vocabulary where appropriate, while keeping them grounded in actual candidate evidence."
+            ),
+            "artifact_implication": (
+                "The revised skills section should confirm the broader narrative already established by the summary and experience sections."
+            ),
+        }
+
+    if step_id == "cover_letter_generation":
+        return {
+            "executive_summary": (
+                "The letter should function as an interpretive bridge between candidate evidence and organizational need."
+            ),
+            "what_is_strong": (
+                "The application already appears to have material that can support a persuasive narrative of fit."
+            ),
+            "how_the_role_reads_this": (
+                "A strong organization-facing letter will look for explicit alignment, contextual relevance, and evidence of contribution rather than generic enthusiasm."
+            ),
+            "what_is_under_signaled": (
+                "The bridge between candidate substance and organizational need is still thinner than it should be."
+            ),
+            "revision_strategy": (
+                "Use the letter to connect strongest candidate evidence to the organization’s language and priorities with more deliberate framing."
+            ),
+            "artifact_implication": (
+                "The final letter should read less like repetition of the resume and more like an explanation of why this candidate matters in this context."
+            ),
+        }
+
+    if step_id == "final_review":
+        return {
+            "executive_summary": (
+                "Final review should synthesize the application as a whole rather than repeat earlier diagnostics."
+            ),
+            "what_is_strong": (
+                "The revised materials are now more aligned and more legible than the original intake materials."
+            ),
+            "how_the_role_reads_this": (
+                "At this stage, the organization is more likely to see clear alignment if framing remains consistent across the resume and letter."
+            ),
+            "what_is_under_signaled": (
+                "Remaining weaknesses are likely to be in emphasis and consistency rather than total absence of fit."
+            ),
+            "revision_strategy": (
+                "Use final review to tighten emphasis, remove drift, and make sure the strongest evidence appears early."
+            ),
+            "artifact_implication": (
+                "The final application package should now feel coherent, deliberate, and context-aware."
+            ),
+        }
+
+    return {
+        "executive_summary": "This step should clarify what is strong, what is weak, and what the next artifact should accomplish.",
+        "what_is_strong": "Relevant substance appears present.",
+        "how_the_role_reads_this": "Interpretation depends on framing.",
+        "what_is_under_signaled": "Some signals are not yet fully legible.",
+        "revision_strategy": "Revise toward stronger alignment.",
+        "artifact_implication": "The next artifact should reflect that revised interpretation.",
+    }
+
+
+def render_deep_analysis_memo(step_id: str):
+    mode = st.session_state.get("verbosity_mode", DEFAULT_VERBOSITY_MODE)
+    if mode != "deep":
+        return
+
+    memo = build_deep_analysis_memo(step_id)
+
+    render_section_break("Deep Analysis Memo")
+    st.markdown("### Executive Summary")
+    st.write(memo["executive_summary"])
+
+    st.markdown("### What Is Strong")
+    st.write(memo["what_is_strong"])
+
+    st.markdown("### How the Organization Is Likely to Read This")
+    st.write(memo["how_the_role_reads_this"])
+
+    st.markdown("### What Is Under-Signaled or Misframed")
+    st.write(memo["what_is_under_signaled"])
+
+    st.markdown("### Revision Strategy")
+    st.write(memo["revision_strategy"])
+
+    st.markdown("### Artifact Implication")
+    st.write(memo["artifact_implication"])
+
+def build_final_review_memo() -> dict:
+    return {
+        "application_read": (
+            "The application now reads as substantially more aligned, especially where the resume and letter have been revised to foreground strategic and organizationally relevant language."
+        ),
+        "strongest_differentiators": [
+            "Evidence of program design and initiative-building",
+            "Cross-stakeholder collaboration",
+            "Ability to connect innovation to practical implementation",
+        ],
+        "remaining_risks": [
+            "Some language may still under-signal scale",
+            "Certain bullets may still read more execution-level than transformation-level",
+        ],
+        "final_edit_priorities": [
+            "Tighten top resume bullets for strongest organizational framing",
+            "Ensure letter opening explicitly names role-relevant fit",
+            "Confirm the strongest evidence appears early in both resume and letter",
+        ],
+        "submission_readiness": (
+            "The materials appear much stronger than the original state, but a final pass should still focus on clarity, framing consistency, and emphasis."
+        ),
+    }
+
+
+def render_final_review_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "final_review"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Final Review")
+    st.write("Generate a final integrative review of the revised application materials.")
+
+    if st.button("Generate Final Review", key="run_final_review"):
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="final_review_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        st.rerun()
+
+    render_deep_analysis_memo(step_id)
+
+    memo = build_final_review_memo()
+    st.markdown("### How the Application Now Reads")
+    st.write(memo["application_read"])
+
+    st.markdown("### Strongest Differentiators")
+    for item in memo["strongest_differentiators"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Remaining Risks")
+    for item in memo["remaining_risks"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Final Edit Priorities")
+    for item in memo["final_edit_priorities"]:
+        st.write(f"- {item}")
+
+    st.markdown("### Submission Readiness")
+    st.write(memo["submission_readiness"])
+
+def build_export_bundle_text() -> str:
+    artifact = st.session_state.resume_revision_artifact
+    cover_letter = st.session_state.cover_letter
+    final_review = build_final_review_memo()
+
+    parts: list[str] = []
+
+    if artifact:
+        parts.append("REVISED SUMMARY")
+        parts.append(artifact.revised_summary or "")
+        parts.append("")
+
+        parts.append("REVISED EXPERIENCE BULLETS")
+        parts.extend(f"- {b}" for b in artifact.revised_experience_bullets)
+        parts.append("")
+
+        parts.append("REVISED SKILLS SECTION")
+        parts.extend(f"- {s}" for s in artifact.revised_skills_section)
+        parts.append("")
+
+    if cover_letter:
+        parts.append("COVER LETTER DRAFT")
+        parts.append(cover_letter.full_text)
+        parts.append("")
+
+    parts.append("FINAL REVIEW MEMO")
+    parts.append(final_review["application_read"])
+    parts.append("")
+    parts.append("FINAL EDIT PRIORITIES")
+    parts.extend(f"- {item}" for item in final_review["final_edit_priorities"])
+
+    return "\n".join(parts)
+
+
+def render_export_bundle_step():
+    _, _, router = load_workflow_components()
+    workflow_state = st.session_state.workflow_state
+    step_id = "export_bundle"
+
+    render_step_context(step_id)
+    render_step_output_card(step_id)
+
+    render_section_break("Export Bundle")
+    st.write("Assemble copy-ready outputs for resume revision, cover letter, and final review.")
+
+    if st.button("Assemble Export Bundle", key="run_export_bundle"):
+        workflow_state = router.start_step(workflow_state, step_id)
+        workflow_state = router.complete_step(
+            workflow_state,
+            step_id,
+            payload={"placeholder": "ok"},
+            output_ref="export_bundle_001",
+        )
+        st.session_state.workflow_state = workflow_state
+        sync_session()
+        st.rerun()
+
+    export_text = build_export_bundle_text()
+    st.text_area(
+        "Copy-ready export bundle",
+        value=export_text,
+        height=420,
+        key="export_bundle_text",
+    )
 
 def maybe_seed_placeholder_outputs():
     workflow_state = st.session_state.workflow_state
@@ -456,12 +780,13 @@ def render_resume_intake():
     with col3:
         st.metric("Working letter", "Present" if has_cover_working else "Optional")
 
-    if st.button("Submit Resume + Letter Inputs", key="submit_resume"):
+    if st.button("Submit Resume + Letter Inputs", key="submit_resume", disabled=not has_resume):
         workflow_state = router.start_step(workflow_state, "resume_intake")
         workflow_state = router.complete_step(
             workflow_state,
             "resume_intake",
             payload={
+                "raw_text": st.session_state.resume_text,
                 "resume_raw_text": st.session_state.resume_text,
                 "cover_letter_start_text": st.session_state.cover_letter_start_text,
                 "cover_letter_working_text": st.session_state.cover_letter_working_text,
@@ -941,6 +1266,7 @@ def render_match_analysis_step():
         st.rerun()
 
     render_analysis_summary()
+    render_deep_analysis_memo(step_id)
     render_seeded_prompts(step_id)
     render_chat(step_id)
 
@@ -973,6 +1299,7 @@ def render_gap_analysis_step():
         st.rerun()
 
     render_analysis_summary()
+    render_deep_analysis_memo(step_id)
     render_seeded_prompts(step_id)
     render_chat(step_id)
 
@@ -990,7 +1317,7 @@ def render_summary_revision_step():
 
     render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
-
+    render_deep_analysis_memo(step_id)
     if st.button("Generate Summary Revision", key="run_summary_revision"):
         workflow_state = router.start_step(workflow_state, step_id)
         workflow_state = router.complete_step(
@@ -1028,7 +1355,7 @@ def render_experience_revision_step():
 
     render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
-
+    render_deep_analysis_memo(step_id)
     if st.button("Generate Experience Revisions", key="run_experience_revision"):
         workflow_state = router.start_step(workflow_state, step_id)
         workflow_state = router.complete_step(
@@ -1065,6 +1392,7 @@ def render_skills_revision_step():
 
     render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
+    render_deep_analysis_memo(step_id)
 
     if st.button("Generate Resume Redesign", key="run_skills_revision"):
         workflow_state = router.start_step(workflow_state, step_id)
@@ -1113,7 +1441,7 @@ def render_cover_letter_generation_step():
 
     render_section_break("Strengths / Gaps / Improve Now")
     render_revision_issue_resolution(step_id)
-
+    render_deep_analysis_memo(step_id)
     render_section_break("Cover Letter Generation Workspace")
     st.write(
         "Generate a targeted cover letter using the prior analysis, revision decisions, strategy, and any available cover-letter source materials."
@@ -1245,7 +1573,6 @@ def render_resume_revision_output(step_id: str):
         for note in artifact.section_notes:
             st.write(f"- {note}")
 
-
 def render_current_step():
     current_step_id = st.session_state.workflow_state.current_step_id
 
@@ -1276,6 +1603,12 @@ def render_current_step():
 
     elif current_step_id == "cover_letter_generation":
         render_cover_letter_generation_step()
+
+    elif current_step_id == "final_review":
+        render_final_review_step()
+
+    elif current_step_id == "export_bundle":
+        render_export_bundle_step()
 
     else:
         render_step_context(current_step_id)
@@ -1348,16 +1681,18 @@ def main():
 
     ensure_state()
     ensure_ui_preferences()
-    render_ui_controls()
     maybe_handle_requested_navigation()
     maybe_seed_placeholder_outputs()
 
     registry, _, _ = load_workflow_components()
 
-    left, center, right = st.columns([1.1, 1.6, 1.3])
-
-    with left:
+    with st.sidebar:
+        st.subheader("Workflow")
         render_step_nav(st.session_state.workflow_state, registry)
+        st.markdown("---")
+        render_ui_controls()
+
+    center, right = st.columns([1.8, 1.2])
 
     with center:
         render_current_step()
@@ -1411,7 +1746,6 @@ def main():
             cover_letter=st.session_state.cover_letter,
             generated_artifacts=st.session_state.generated_artifacts,
         )
-
 
 if __name__ == "__main__":
     main()
