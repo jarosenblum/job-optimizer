@@ -77,6 +77,7 @@ def ensure_state():
         st.session_state.generated_artifacts = []
         st.session_state.analysis_explanations = {}
         st.session_state.resume_revision_artifact = None
+        st.session_state.chat_prefill_by_step = {}
 
 
 def ensure_ui_preferences():
@@ -1151,17 +1152,17 @@ def render_seeded_prompts(step_id: str):
         ],
     }
 
-    for prompt in prompts.get(step_id, []):
-        if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
+    for i, prompt in enumerate(prompts.get(step_id, [])):
+        if st.button(prompt, key=f"seeded_prompt_{step_id}_{i}"):
             st.session_state.selected_seed_prompt_by_step[step_id] = prompt
             st.session_state.chat_prefill_by_step[step_id] = prompt
             st.rerun()
 
-    for prompt in prompts.get(step_id, []):
-        if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
+    for i, prompt in enumerate(prompts.get(step_id, [])):
+        if st.button(prompt, key=f"seeded_prompt_{step_id}_{i}"):
             st.session_state.selected_seed_prompt_by_step[step_id] = prompt
-            st.session_state[f"chat_input_{step_id}"] = prompt
-
+            st.session_state.chat_prefill_by_step[step_id] = prompt
+            st.rerun()
 
 def append_chat_turn(step_id: str, role: str, content: str):
     history = st.session_state.chat_history_by_step.setdefault(step_id, [])
@@ -1190,14 +1191,20 @@ def render_chat(step_id: str):
 
     render_chat_history(step_id)
 
-    version = st.session_state.chat_input_version_by_step.get(step_id, 0)
+    input_key = f"chat_input_{step_id}"
     prefill = st.session_state.chat_prefill_by_step.get(step_id, "")
-    input_key = f"chat_input_{step_id}_{version}"
+
+    if input_key not in st.session_state:
+        st.session_state[input_key] = ""
+
+    # hydrate the visible field before widget creation
+    if prefill:
+        st.session_state[input_key] = prefill
+        st.session_state.chat_prefill_by_step[step_id] = ""
 
     with st.form(key=f"chat_form_{step_id}", clear_on_submit=False):
         user_input = st.text_input(
             "Ask a question",
-            value=prefill,
             key=input_key,
         )
         col1, col2 = st.columns([1, 1])
@@ -1208,17 +1215,26 @@ def render_chat(step_id: str):
 
     if cleared:
         st.session_state.chat_history_by_step[step_id] = []
+        st.session_state[input_key] = ""
         st.session_state.chat_prefill_by_step[step_id] = ""
-        st.session_state.chat_input_version_by_step[step_id] = version + 1
         st.rerun()
 
     if submitted and user_input.strip():
         append_chat_turn(step_id, "user", user_input.strip())
+
         response = build_chat_response(step_id, user_input.strip())
+        # if using LLM later:
+        # response = generate_llm_chat_response(
+        #     step_id,
+        #     user_input.strip(),
+        #     st.session_state.chat_history_by_step[step_id],
+        #     st.session_state.resume_text,
+        #     st.session_state.jd_text,
+        # )
+
         append_chat_turn(step_id, "assistant", response)
         st.session_state.chat_responses_by_step[step_id] = response
-        st.session_state.chat_prefill_by_step[step_id] = ""
-        st.session_state.chat_input_version_by_step[step_id] = version + 1
+        st.session_state[input_key] = ""
         st.rerun()
 
 
