@@ -77,7 +77,6 @@ def ensure_state():
         st.session_state.generated_artifacts = []
         st.session_state.analysis_explanations = {}
         st.session_state.resume_revision_artifact = None
-        st.session_state.chat_prefill_by_step = {}
 
 
 def ensure_ui_preferences():
@@ -1153,13 +1152,7 @@ def render_seeded_prompts(step_id: str):
     }
 
     for i, prompt in enumerate(prompts.get(step_id, [])):
-        if st.button(prompt, key=f"seeded_prompt_{step_id}_{i}"):
-            st.session_state.selected_seed_prompt_by_step[step_id] = prompt
-            st.session_state.chat_prefill_by_step[step_id] = prompt
-            st.rerun()
-
-    for i, prompt in enumerate(prompts.get(step_id, [])):
-        if st.button(prompt, key=f"seeded_prompt_{step_id}_{i}"):
+        if st.button(prompt, key=f"seeded_prompt::{step_id}::{i}"):
             st.session_state.selected_seed_prompt_by_step[step_id] = prompt
             st.session_state.chat_prefill_by_step[step_id] = prompt
             st.rerun()
@@ -1194,13 +1187,16 @@ def render_chat(step_id: str):
     input_key = f"chat_input_{step_id}"
     prefill = st.session_state.chat_prefill_by_step.get(step_id, "")
 
-    if input_key not in st.session_state:
-        st.session_state[input_key] = ""
+# ALWAYS hydrate first if there's a prefill
+prefill = st.session_state.chat_prefill_by_step.get(step_id)
 
-    # hydrate the visible field before widget creation
-    if prefill:
-        st.session_state[input_key] = prefill
-        st.session_state.chat_prefill_by_step[step_id] = ""
+if prefill:
+    st.session_state[input_key] = prefill
+    st.session_state.chat_prefill_by_step[step_id] = None
+
+# Ensure key exists AFTER hydration logic
+if input_key not in st.session_state:
+    st.session_state[input_key] = ""
 
     with st.form(key=f"chat_form_{step_id}", clear_on_submit=False):
         user_input = st.text_input(
