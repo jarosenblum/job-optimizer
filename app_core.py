@@ -66,6 +66,8 @@ def ensure_state():
         st.session_state.chat_responses_by_step = {}
         st.session_state.selected_seed_prompt_by_step = {}
         st.session_state.chat_history_by_step = {}
+        st.session_state.chat_input_version_by_step = {}
+        st.session_state.chat_prefill_by_step = {}
 
         st.session_state.match_analysis = None
         st.session_state.gap_analysis = None
@@ -665,13 +667,12 @@ def render_step_action_bar(
 ) -> bool:
     step_num, total_steps = get_step_index(step_id)
     prev_step_id = get_previous_step_id(step_id)
-    next_step_id = get_next_step_id(step_id)
 
     st.markdown("### What to do next")
     st.progress(step_num / total_steps)
     st.caption(f"Step {step_num} of {total_steps}")
 
-    col1, col2, col3 = st.columns([1, 1, 2])
+    col1, col2 = st.columns([1, 3])
 
     with col1:
         if st.button(
@@ -684,16 +685,6 @@ def render_step_action_bar(
             st.rerun()
 
     with col2:
-        if st.button(
-            "Open next ➡",
-            key=f"next_nav_{step_id}",
-            disabled=next_step_id is None,
-            use_container_width=True,
-        ):
-            st.session_state.requested_step_id = next_step_id
-            st.rerun()
-
-    with col3:
         if primary_label:
             return st.button(
                 primary_label,
@@ -1163,6 +1154,12 @@ def render_seeded_prompts(step_id: str):
     for prompt in prompts.get(step_id, []):
         if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
             st.session_state.selected_seed_prompt_by_step[step_id] = prompt
+            st.session_state.chat_prefill_by_step[step_id] = prompt
+            st.rerun()
+
+    for prompt in prompts.get(step_id, []):
+        if st.button(prompt, key=f"seeded_prompt_{step_id}_{prompt}"):
+            st.session_state.selected_seed_prompt_by_step[step_id] = prompt
             st.session_state[f"chat_input_{step_id}"] = prompt
 
 
@@ -1193,10 +1190,15 @@ def render_chat(step_id: str):
 
     render_chat_history(step_id)
 
+    version = st.session_state.chat_input_version_by_step.get(step_id, 0)
+    prefill = st.session_state.chat_prefill_by_step.get(step_id, "")
+    input_key = f"chat_input_{step_id}_{version}"
+
     with st.form(key=f"chat_form_{step_id}", clear_on_submit=False):
         user_input = st.text_input(
             "Ask a question",
-            key=f"chat_input_{step_id}",
+            value=prefill,
+            key=input_key,
         )
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -1206,7 +1208,8 @@ def render_chat(step_id: str):
 
     if cleared:
         st.session_state.chat_history_by_step[step_id] = []
-        st.session_state[f"chat_input_{step_id}"] = ""
+        st.session_state.chat_prefill_by_step[step_id] = ""
+        st.session_state.chat_input_version_by_step[step_id] = version + 1
         st.rerun()
 
     if submitted and user_input.strip():
@@ -1214,7 +1217,8 @@ def render_chat(step_id: str):
         response = build_chat_response(step_id, user_input.strip())
         append_chat_turn(step_id, "assistant", response)
         st.session_state.chat_responses_by_step[step_id] = response
-        st.session_state[f"chat_input_{step_id}"] = ""
+        st.session_state.chat_prefill_by_step[step_id] = ""
+        st.session_state.chat_input_version_by_step[step_id] = version + 1
         st.rerun()
 
 
