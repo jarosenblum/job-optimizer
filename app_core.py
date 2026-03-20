@@ -107,13 +107,17 @@ def maybe_handle_requested_navigation():
         return
 
     _, _, router = load_workflow_components()
-    st.session_state.workflow_state = router.go_to_step(
-        st.session_state.workflow_state,
-        requested_step_id,
-    )
+
+    try:
+        st.session_state.workflow_state = router.go_to_step(
+            st.session_state.workflow_state,
+            requested_step_id,
+        )
+    except ValueError:
+        pass
+
     st.session_state.requested_step_id = None
     sync_session()
-
 
 def build_placeholder_match_analysis() -> MatchAnalysis:
     return MatchAnalysis(
@@ -1185,20 +1189,19 @@ def render_chat(step_id: str):
     render_chat_history(step_id)
 
     input_key = f"chat_input_{step_id}"
-    prefill = st.session_state.chat_prefill_by_step.get(step_id, "")
 
-# ALWAYS hydrate first if there's a prefill
-prefill = st.session_state.chat_prefill_by_step.get(step_id)
+    # ALWAYS hydrate first if there's a prefill
+    prefill = st.session_state.chat_prefill_by_step.get(step_id)
 
-if prefill:
-    st.session_state[input_key] = prefill
-    st.session_state.chat_prefill_by_step[step_id] = None
+    if prefill:
+        st.session_state[input_key] = prefill
+        st.session_state.chat_prefill_by_step[step_id] = None
 
-# Ensure key exists AFTER hydration logic
-if input_key not in st.session_state:
-    st.session_state[input_key] = ""
+    # Ensure key exists AFTER hydration logic
+    if input_key not in st.session_state:
+        st.session_state[input_key] = ""
 
-    with st.form(key=f"chat_form_{step_id}", clear_on_submit=False):
+    with st.form(key=f"chat_form_{step_id}", clear_on_submit=True):
         user_input = st.text_input(
             "Ask a question",
             key=input_key,
@@ -1211,14 +1214,8 @@ if input_key not in st.session_state:
 
     if cleared:
         st.session_state.chat_history_by_step[step_id] = []
-        st.session_state[input_key] = ""
         st.session_state.chat_prefill_by_step[step_id] = ""
         st.rerun()
-
-    if submitted and user_input.strip():
-        append_chat_turn(step_id, "user", user_input.strip())
-
-        response = build_chat_response(step_id, user_input.strip())
         # if using LLM later:
         # response = generate_llm_chat_response(
         #     step_id,
@@ -1228,9 +1225,11 @@ if input_key not in st.session_state:
         #     st.session_state.jd_text,
         # )
 
+    if submitted and user_input.strip():
+        append_chat_turn(step_id, "user", user_input.strip())
+        response = build_chat_response(step_id, user_input.strip())
         append_chat_turn(step_id, "assistant", response)
         st.session_state.chat_responses_by_step[step_id] = response
-        st.session_state[input_key] = ""
         st.rerun()
 
 
@@ -1406,9 +1405,6 @@ def render_resume_intake():
         )
         st.session_state.workflow_state = workflow_state
         sync_session()
-        next_step = get_next_step_id("resume_intake")
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
 
@@ -1442,9 +1438,6 @@ def render_job_description_intake():
         )
         st.session_state.workflow_state = workflow_state
         sync_session()
-        next_step = get_next_step_id("job_description_intake")
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
 
@@ -1503,9 +1496,6 @@ def render_match_analysis_step():
         st.session_state.match_analysis = build_placeholder_match_analysis()
         st.session_state.analysis_explanations = build_placeholder_analysis_explanations()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_analysis_summary()
@@ -1545,9 +1535,6 @@ def render_gap_analysis_step():
         st.session_state.workflow_state = workflow_state
         st.session_state.gap_analysis = build_placeholder_gap_analysis()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_analysis_summary()
@@ -1589,9 +1576,6 @@ def render_summary_revision_step():
         st.session_state.revisions = build_placeholder_revisions()
         st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_section_break("Revised Output")
@@ -1636,9 +1620,6 @@ def render_experience_revision_step():
         st.session_state.workflow_state = workflow_state
         st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_section_break("Revised Output")
@@ -1684,9 +1665,6 @@ def render_skills_revision_step():
         st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
         st.session_state.cover_letter_strategy = build_placeholder_cover_letter_strategy()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_section_break("Revised Output")
@@ -1750,9 +1728,6 @@ def render_cover_letter_generation_step():
         st.session_state.workflow_state = workflow_state
         st.session_state.cover_letter = build_placeholder_cover_letter()
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_analysis_summary()
@@ -1789,9 +1764,6 @@ def render_final_review_step():
         )
         st.session_state.workflow_state = workflow_state
         sync_session()
-        next_step = get_next_step_id(step_id)
-        if next_step:
-            st.session_state.requested_step_id = next_step
         st.rerun()
 
     render_deep_analysis_memo(step_id)
