@@ -16,6 +16,44 @@ from llm.prompts import (
 from store.run_store import RunPaths, save_artifact, save_prompt, save_state
 from validators.validate import validate_artifact
 
+def normalize_profile_blueprint(profile_blueprint: dict) -> dict:
+    def unwrap_list_wrapper(value):
+        if isinstance(value, dict) and "list" in value and isinstance(value["list"], list):
+            return value["list"]
+        return value
+
+    profile_blueprint["strengths"] = unwrap_list_wrapper(profile_blueprint.get("strengths", []))
+    profile_blueprint["approved_claims"] = unwrap_list_wrapper(profile_blueprint.get("approved_claims", []))
+    profile_blueprint["do_not_claim"] = unwrap_list_wrapper(profile_blueprint.get("do_not_claim", []))
+
+    targeting = profile_blueprint.get("targeting", {})
+    if isinstance(targeting, dict):
+        targeting["role_families"] = unwrap_list_wrapper(targeting.get("role_families", []))
+        targeting["target_titles"] = unwrap_list_wrapper(targeting.get("target_titles", []))
+        targeting["avoid_titles"] = unwrap_list_wrapper(targeting.get("avoid_titles", []))
+        targeting["constraints"] = unwrap_list_wrapper(targeting.get("constraints", []))
+        profile_blueprint["targeting"] = targeting
+
+    tooling = profile_blueprint.get("tooling_signals", {})
+    if isinstance(tooling, dict):
+        tooling["strong"] = unwrap_list_wrapper(tooling.get("strong", []))
+        tooling["familiar"] = unwrap_list_wrapper(tooling.get("familiar", []))
+        tooling["missing_or_unclear"] = unwrap_list_wrapper(tooling.get("missing_or_unclear", []))
+        profile_blueprint["tooling_signals"] = tooling
+
+    leadership = profile_blueprint.get("leadership_scope", {})
+    if isinstance(leadership, dict):
+        leadership["signals"] = unwrap_list_wrapper(leadership.get("signals", []))
+        leadership["evidence_chunks"] = unwrap_list_wrapper(leadership.get("evidence_chunks", []))
+        profile_blueprint["leadership_scope"] = leadership
+
+    preferred = profile_blueprint.get("preferred_language", {})
+    if isinstance(preferred, dict):
+        preferred["keywords"] = unwrap_list_wrapper(preferred.get("keywords", []))
+        preferred["phrases"] = unwrap_list_wrapper(preferred.get("phrases", []))
+        profile_blueprint["preferred_language"] = preferred
+
+    return profile_blueprint
 
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -51,7 +89,6 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         if not resume_text:
             raise ValueError("Step 1 requires inputs.resume_text")
 
-        # Minimal chunking MVP: single chunk + (optional) later improvements
         chunks = [{
             "chunk_id": "r_001",
             "chunk_type": "resume_full",
@@ -86,7 +123,6 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
 
     # ---------- STEP 2: profile_blueprint ----------
     if step_id == "2":
-        # gate: step 1 must exist (approval optional; you can tighten later)
         cand_path = state["artifacts"].get("candidate_profile")
         if not cand_path:
             raise ValueError("Step 2 requires candidate_profile artifact (run Step 1 first).")
@@ -100,8 +136,8 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         save_prompt(run_paths, "2", user_prompt)
 
         artifact = chat_json(client, cfg, system_json_only(), user_prompt)
+        artifact = normalize_profile_blueprint(artifact)
 
-        # inject required meta fields if prompt forgets (minimal patch)
         artifact.setdefault("schema_version", "1.0")
         artifact["artifact_type"] = "profile_blueprint"
         artifact.setdefault("created_at", _now_iso())
@@ -129,7 +165,13 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         location = meta.get("location", "")
         source = meta.get("source", "manual")
 
-        user_prompt = build_job_blueprint_prompt(job_text, title=title, company=company, location=location, source=source)
+        user_prompt = build_job_blueprint_prompt(
+            job_text,
+            title=title,
+            company=company,
+            location=location,
+            source=source,
+        )
         save_prompt(run_paths, "3", user_prompt)
 
         artifact = chat_json(client, cfg, system_json_only(), user_prompt)
@@ -140,7 +182,6 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         artifact["run_id"] = state["run_id"]
         artifact.setdefault("job_id", f"job_{_fingerprint(job_text)}")
 
-        # enforce minimal job_meta if missing
         artifact.setdefault("job_meta", {})
         artifact["job_meta"].setdefault("title", title)
         artifact["job_meta"].setdefault("company", company)
@@ -171,8 +212,12 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         user_prompt = build_match_report_prompt(profile_blueprint_json, job_blueprint_json)
         save_prompt(run_paths, "4", user_prompt)
 
-        
         artifact = chat_json(client, cfg, system_json_only(), user_prompt)
+
+        print("DEBUG MATCH REPORT RAW:", artifact)
+
+        if not artifact:
+            raise ValueError("LLM returned empty match_report")
 
         artifact.setdefault("schema_version", "1.0")
         artifact["artifact_type"] = "match_report"
@@ -180,12 +225,12 @@ def run_step(repo_root: Path, run_paths: RunPaths, step_id: str, state: Dict[str
         artifact["run_id"] = state["run_id"]
         artifact["candidate_id"] = state.get("candidate_id", "janet")
 
-        # propagate job_id if missing
         job_bp = json.loads(job_blueprint_json)
         artifact["job_id"] = artifact.get("job_id") or job_bp.get("job_id")
 
         err = validate_artifact(repo_root, artifact)
         if err:
+            print("VALIDATION ERROR:", err)
             raise ValueError(err)
 
         p = save_artifact(run_paths, "match_report", artifact)

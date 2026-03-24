@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from pathlib import Path
 
 import streamlit as st
@@ -22,7 +21,7 @@ from workflow.contracts import (
 from workflow.session_manager import SessionManager
 from workflow.step_registry import StepRegistry
 from workflow.validators import ValidationRuleSet, ValidatorEngine
-
+from kernel import TaskRunner
 
 BASE = Path(__file__).resolve().parent
 STEP_REGISTRY_PATH = BASE / "step_registry.json"
@@ -42,6 +41,44 @@ def load_workflow_components():
     router = WorkflowRouter(registry, validator)
     return registry, validator, router
 
+@st.cache_resource
+def load_kernel():
+    from dataclasses import dataclass
+    import uuid
+
+    try:
+        from store.run_store import create_run_paths
+    except ImportError:
+        create_run_paths = None
+
+    repo_root = Path(__file__).resolve().parent
+
+    @dataclass
+    class FallbackRunPaths:
+        run_id: str
+        run_dir: Path
+        artifacts_dir: Path
+        prompts_dir: Path
+
+    if create_run_paths is not None:
+        run_paths = create_run_paths(repo_root=repo_root)
+    else:
+        run_id = str(uuid.uuid4())
+        run_dir = repo_root / "runs" / run_id
+        artifacts_dir = run_dir / "artifacts"
+        prompts_dir = run_dir / "prompts"
+
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+
+        run_paths = FallbackRunPaths(
+            run_id=run_id,
+            run_dir=run_dir,
+            artifacts_dir=artifacts_dir,
+            prompts_dir=prompts_dir,
+        )
+
+    return TaskRunner(repo_root=repo_root, run_paths=run_paths)
 
 def ensure_state():
     _, _, router = load_workflow_components()
@@ -77,6 +114,19 @@ def ensure_state():
         st.session_state.generated_artifacts = []
         st.session_state.analysis_explanations = {}
         st.session_state.resume_revision_artifact = None
+        st.session_state.match_report_artifact = None
+
+    if "kernel_state" not in st.session_state:
+        st.session_state.kernel_state = {
+            "inputs": {},
+            "artifacts": {},
+            "approved_steps": [],
+        }
+
+    kernel = load_kernel()
+    run_id = getattr(kernel.run_paths, "run_id", None)
+    if run_id and "run_id" not in st.session_state.kernel_state:
+        st.session_state.kernel_state["run_id"] = run_id
 
 
 def ensure_ui_preferences():
@@ -100,6 +150,154 @@ def sync_session():
         st.session_state.workflow_state,
     )
 
+def build_live_analysis_explanations(match: MatchAnalysis, gap: GapAnalysis) -> dict[str, AnalysisExplanation]:
+    return {
+        "match_analysis": AnalysisExplanation(
+            explanation_id="exp_match_live",
+            analysis_type="match_analysis",
+            summary_text=(
+                match.rationale
+                or "The candidate appears substantively relevant, but current materials may under-signal fit in the organization’s preferred language."
+            ),
+            explain_text=(
+                "This analysis is grounded in the structured match report generated from the candidate and job blueprints. "
+                "Use it to identify where fit is already present versus where language, framing, or evidence needs strengthening."
+            ),
+            expand_text=(
+                "The match report should be treated as the primary analysis substrate. "
+                "It surfaces overlap, missing language, strengths, and weaknesses so later revision steps can focus on reframing valid evidence rather than inventing unsupported claims."
+            ),
+        ),
+        "gap_analysis": AnalysisExplanation(
+            explanation_id="exp_gap_live",
+            analysis_type="gap_analysis",
+            summary_text=(
+                gap.rationale
+                or "The main issues are likely in representation, prioritization, and framing rather than simple absence of relevant experience."
+            ),
+            explain_text=(
+                "This gap analysis translates the baseline match into revision priorities. "
+                "It identifies where the materials need stronger language, clearer framing, or stronger visible evidence."
+            ),
+            expand_text=(
+                "Use the gap output to guide revision sequencing. "
+                "The goal is to improve how the candidate is classified by the reader, especially in places where substance may already be present but not yet legible."
+            ),
+        ),
+    }
+
+
+def run_live_match_analysis():
+    kernel = load_kernel()
+
+    run_id = getattr(kernel.run_paths, "run_id", None)
+    if run_id:
+        st.session_state.kernel_state["run_id"] = run_id
+
+    st.session_state.kernel_state.setdefault("inputs", {})
+    st.session_state.kernel_state["inputs"]["resume_text"] = st.session_state.resume_text
+    st.session_state.kernel_state["inputs"]["job_text"] = st.session_state.jd_text
+    st.session_state.kernel_state["inputs"]["cover_letter_texts"] = [
+        text for text in [
+            st.session_state.cover_letter_start_text,
+            st.session_state.cover_letter_working_text,
+        ] if text.strip()
+    ]
+    st.session_state.kernel_state["inputs"].setdefault("notes_texts", [])
+    st.session_state.kernel_state["inputs"].setdefault("job_meta", {})
+
+    result = kernel.run_match_pipeline(
+        resume_text=st.session_state.resume_text,
+        jd_text=st.session_state.jd_text,
+        cover_letter_text=st.session_state.cover_letter_working_text,
+        state=st.session_state.kernel_state,
+    )
+
+    st.write("DEBUG result:", result)
+    st.write("DEBUG result dict:", getattr(result, "__dict__", "no __dict__"))
+    st.write("DEBUG result.state:", getattr(result, "state", None))
+    st.write("DEBUG result.artifact:", getattr(result, "artifact", None))
+
+    if not result.ok:
+        st.error(f"Live analysis failed: {result.error}")
+        return False
+
+    st.session_state.kernel_state = result.state or st.session_state.kernel_state
+
+    if not result.artifact:
+        st.error("Live analysis failed: no match report artifact was returned.")
+        return False
+
+    st.session_state.match_report_artifact = result.artifact
+    st.session_state.match_analysis = adapt_match_report_to_match_analysis(result.artifact)
+    st.session_state.gap_analysis = adapt_match_report_to_gap_analysis(result.artifact)
+    st.session_state.analysis_explanations = build_live_analysis_explanations(
+        st.session_state.match_analysis,
+        st.session_state.gap_analysis,
+    )
+
+    return True
+
+# [START PATCH: adapt_match_report_to_match_analysis schema normalization]
+def adapt_match_report_to_match_analysis(artifact: dict) -> MatchAnalysis:
+    artifact = artifact or {}
+
+    overall = artifact.get("overall", {})
+    if not isinstance(overall, dict):
+        overall = {}
+
+    evidence_items = artifact.get("evidence", [])
+    if isinstance(evidence_items, dict):
+        evidence_items = [evidence_items]
+    elif not isinstance(evidence_items, list):
+        evidence_items = []
+
+    gap_items = artifact.get("gaps", [])
+    if isinstance(gap_items, dict):
+        gap_items = [gap_items]
+    elif not isinstance(gap_items, list):
+        gap_items = []
+
+    strengths = [
+        item.get("claim", "")
+        for item in evidence_items
+        if isinstance(item, dict) and item.get("claim")
+    ]
+
+    weaknesses = [
+        item.get("gap", "")
+        for item in gap_items
+        if isinstance(item, dict) and item.get("gap")
+    ]
+
+    missing_keywords = []
+    for item in gap_items:
+        if isinstance(item, dict):
+            kws = item.get("suggested_keywords", [])
+            if isinstance(kws, list):
+                missing_keywords.extend([kw for kw in kws if isinstance(kw, str) and kw.strip()])
+
+    seen = set()
+    missing_keywords = [
+        kw for kw in missing_keywords
+        if not (kw in seen or seen.add(kw))
+    ]
+
+    return MatchAnalysis(
+        match_analysis_id=artifact.get("artifact_id", "match_live"),
+        overall_score=float(overall.get("fit_score", 0.0) or 0.0),
+        matched_skills=[],
+        missing_skills=[],
+        matched_keywords=[],
+        missing_keywords=missing_keywords,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        language_overlap=[],
+        language_gaps=missing_keywords,
+        tone_mismatch_notes=[],
+        rationale=overall.get("one_sentence_verdict", "") or overall.get("rationale", ""),
+    )
+# [END PATCH: adapt_match_report_to_match_analysis schema normalization]
 
 def maybe_handle_requested_navigation():
     requested_step_id = st.session_state.get("requested_step_id")
@@ -120,61 +318,11 @@ def maybe_handle_requested_navigation():
     sync_session()
 
 def build_placeholder_match_analysis() -> MatchAnalysis:
-    return MatchAnalysis(
-        match_analysis_id="match_001",
-        overall_score=72.0,
-        matched_skills=["project leadership", "stakeholder communication", "program design"],
-        missing_skills=["cross-functional scaling", "change management language"],
-        matched_keywords=["strategy", "outcomes", "collaboration"],
-        missing_keywords=["transformation", "operational excellence", "scalable systems"],
-        strengths=[
-            "Candidate materials show strong program and instructional design experience.",
-            "Evidence of cross-stakeholder work is present.",
-        ],
-        weaknesses=[
-            "Role emphasizes transformation language more explicitly than the current materials do.",
-        ],
-        language_overlap=["strategy", "collaboration", "outcomes"],
-        language_gaps=["transformation", "enterprise scale", "operational excellence"],
-        tone_mismatch_notes=[
-            "Current materials read as thoughtful and evidence-driven, but less explicitly executive/transformational.",
-        ],
-        rationale=(
-            "Candidate and role align on substance, but candidate materials underuse some "
-            "organizational framing and language."
-        ),
-    )
+    raise RuntimeError("build_placeholder_match_analysis() should no longer be called after live kernel wiring.")
 
 
 def build_placeholder_gap_analysis() -> GapAnalysis:
-    return GapAnalysis(
-        gap_analysis_id="gap_001",
-        priority_gaps=[
-            "Increase explicit transformation/change language.",
-            "Frame prior work in broader organizational terms.",
-        ],
-        missing_evidence=[
-            "Broader scale framing is not consistently foregrounded.",
-        ],
-        weak_sections=["summary", "experience"],
-        recommended_focus_areas=[
-            "Leadership framing",
-            "Enterprise/program-level impact",
-        ],
-        revision_priorities=[
-            "Revise summary for role-aligned language.",
-            "Rewrite top experience bullets to surface transformation and scale.",
-        ],
-        language_gaps=["transformation", "operational excellence", "scalable systems"],
-        framing_gaps=[
-            "Resume often frames work as instructional execution rather than organizational leadership.",
-        ],
-        rationale=(
-            "Core evidence is present, but framing and language do not yet fully match "
-            "the target organization context."
-        ),
-    )
-
+    raise RuntimeError("build_placeholder_gap_analysis() should no longer be called after live kernel wiring.")
 
 def build_placeholder_resume_revision_artifact() -> ResumeRevisionArtifact:
     revised_summary = (
@@ -610,11 +758,8 @@ def maybe_seed_placeholder_outputs():
     workflow_state = st.session_state.workflow_state
     completed_ids = {s.step_id for s in workflow_state.step_states if s.status.value == "complete"}
 
-    if "job_description_intake" in completed_ids and st.session_state.match_analysis is None:
-        st.session_state.match_analysis = build_placeholder_match_analysis()
-
-    if "match_analysis" in completed_ids and st.session_state.gap_analysis is None:
-        st.session_state.gap_analysis = build_placeholder_gap_analysis()
+    # Match/gap are now live-backed and should not be reseeded with placeholders.
+    # Keep placeholder seeding only for downstream steps not yet wired.
 
     if "gap_analysis" in completed_ids and not st.session_state.revisions:
         st.session_state.revisions = build_placeholder_revisions()
@@ -627,9 +772,6 @@ def maybe_seed_placeholder_outputs():
 
     if "final_review" in completed_ids and not st.session_state.generated_artifacts:
         st.session_state.generated_artifacts = build_placeholder_generated_artifacts()
-
-    if "match_analysis" in completed_ids and not st.session_state.analysis_explanations:
-        st.session_state.analysis_explanations = build_placeholder_analysis_explanations()
 
     if "summary_revision" in completed_ids and st.session_state.resume_revision_artifact is None:
         st.session_state.resume_revision_artifact = build_placeholder_resume_revision_artifact()
@@ -1404,6 +1546,17 @@ def render_resume_intake():
             output_ref="resume_001" if has_resume else None,
         )
         st.session_state.workflow_state = workflow_state
+
+        st.session_state.kernel_state.setdefault("inputs", {})
+        st.session_state.kernel_state["inputs"]["resume_text"] = st.session_state.resume_text
+        st.session_state.kernel_state["inputs"]["cover_letter_texts"] = [
+            text for text in [
+                st.session_state.cover_letter_start_text,
+                st.session_state.cover_letter_working_text,
+            ] if text.strip()
+        ]
+        st.session_state.kernel_state["inputs"]["notes_texts"] = st.session_state.kernel_state["inputs"].get("notes_texts", [])
+
         sync_session()
         st.rerun()
 
@@ -1437,6 +1590,11 @@ def render_job_description_intake():
             output_ref="jd_001" if st.session_state.jd_text.strip() else None,
         )
         st.session_state.workflow_state = workflow_state
+
+        st.session_state.kernel_state.setdefault("inputs", {})
+        st.session_state.kernel_state["inputs"]["job_text"] = st.session_state.jd_text
+        st.session_state.kernel_state["inputs"].setdefault("job_meta", {})
+
         sync_session()
         st.rerun()
 
@@ -1482,21 +1640,32 @@ def render_match_analysis_step():
         step_id,
         primary_label="Run Match Analysis and Continue",
         primary_key="run_match_analysis_top",
+        primary_disabled=not bool(st.session_state.resume_text.strip()) or not bool(st.session_state.jd_text.strip()),
     )
 
     if run_match:
         workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="match_analysis_001",
-        )
         st.session_state.workflow_state = workflow_state
-        st.session_state.match_analysis = build_placeholder_match_analysis()
-        st.session_state.analysis_explanations = build_placeholder_analysis_explanations()
-        sync_session()
-        st.rerun()
+
+        ok = run_live_match_analysis()
+        if ok:
+            workflow_state = router.complete_step(
+                st.session_state.workflow_state,
+                step_id,
+                payload={
+                    "resume_text_present": bool(st.session_state.resume_text.strip()),
+                    "jd_text_present": bool(st.session_state.jd_text.strip()),
+                    "artifact_type": "match_report",
+                },
+                output_ref=(
+                    st.session_state.match_report_artifact.get("artifact_id", "match_report_live")
+                    if st.session_state.match_report_artifact
+                    else "match_report_live"
+                ),
+            )
+            st.session_state.workflow_state = workflow_state
+            sync_session()
+            st.rerun()
 
     render_analysis_summary()
     render_deep_analysis_memo(step_id)
@@ -1522,20 +1691,32 @@ def render_gap_analysis_step():
         step_id,
         primary_label="Generate Gap Analysis and Continue",
         primary_key="run_gap_analysis_top",
+        primary_disabled=st.session_state.match_analysis is None,
     )
 
     if run_gap:
         workflow_state = router.start_step(workflow_state, step_id)
-        workflow_state = router.complete_step(
-            workflow_state,
-            step_id,
-            payload={"placeholder": "ok"},
-            output_ref="gap_analysis_001",
-        )
         st.session_state.workflow_state = workflow_state
-        st.session_state.gap_analysis = build_placeholder_gap_analysis()
-        sync_session()
-        st.rerun()
+
+        # Reuse the live match artifact already stored in session state.
+        artifact = st.session_state.get("match_report_artifact")
+        if artifact:
+            st.session_state.gap_analysis = adapt_match_report_to_gap_analysis(artifact)
+
+            workflow_state = router.complete_step(
+                st.session_state.workflow_state,
+                step_id,
+                payload={
+                    "artifact_type": "gap_analysis_from_match_report",
+                    "source_match_report_id": artifact.get("artifact_id", "match_report_live"),
+                },
+                output_ref=f"gap_from_{artifact.get('artifact_id', 'match_report_live')}",
+            )
+            st.session_state.workflow_state = workflow_state
+            sync_session()
+            st.rerun()
+        else:
+            st.error("No live match report artifact is available yet. Run Match Analysis first.")
 
     render_analysis_summary()
     render_deep_analysis_memo(step_id)
@@ -1927,6 +2108,106 @@ def render_focused_output():
         st.session_state.focus_output_step = None
         st.rerun()
 
+# [START PATCH: add required rationale to GapAnalysis adapter]
+
+# [START PATCH: adapt_match_report_to_gap_analysis schema normalization]
+def adapt_match_report_to_gap_analysis(artifact: dict) -> GapAnalysis:
+    artifact = artifact or {}
+
+    overall = artifact.get("overall", {})
+    if not isinstance(overall, dict):
+        overall = {}
+
+    gap_items = artifact.get("gaps", [])
+    if isinstance(gap_items, dict):
+        gap_items = [gap_items]
+    elif not isinstance(gap_items, list):
+        gap_items = []
+
+    language_optimization = artifact.get("language_optimization", {})
+    if not isinstance(language_optimization, dict):
+        language_optimization = {}
+
+    guardrails = artifact.get("guardrails", {})
+    if not isinstance(guardrails, dict):
+        guardrails = {}
+
+    next_actions = artifact.get("next_actions", [])
+    if not isinstance(next_actions, list):
+        next_actions = []
+
+    priority_gaps = [
+        item.get("gap", "")
+        for item in gap_items
+        if isinstance(item, dict) and item.get("gap")
+    ]
+
+    recommended_actions = [
+        item.get("recommended_fix", "")
+        for item in gap_items
+        if isinstance(item, dict) and item.get("recommended_fix")
+    ]
+
+    suggested_keywords = []
+    for item in gap_items:
+        if isinstance(item, dict):
+            kws = item.get("suggested_keywords", [])
+            if isinstance(kws, list):
+                suggested_keywords.extend(
+                    [kw for kw in kws if isinstance(kw, str) and kw.strip()]
+                )
+
+    add_keywords = language_optimization.get("add_keywords", [])
+    if isinstance(add_keywords, list):
+        suggested_keywords.extend(
+            [kw for kw in add_keywords if isinstance(kw, str) and kw.strip()]
+        )
+
+    seen = set()
+    suggested_keywords = [
+        kw for kw in suggested_keywords
+        if not (kw in seen or seen.add(kw))
+    ]
+
+    replace_phrases = language_optimization.get("replace_phrases", [])
+    if not isinstance(replace_phrases, list):
+        replace_phrases = []
+
+    tone_guidance = language_optimization.get("tone_guidance", [])
+    if not isinstance(tone_guidance, list):
+        tone_guidance = []
+
+    blocked_claims = guardrails.get("blocked_claims", [])
+    if not isinstance(blocked_claims, list):
+        blocked_claims = []
+
+    warnings = guardrails.get("warnings", [])
+    if not isinstance(warnings, list):
+        warnings = []
+
+    blockers = guardrails.get("blockers", [])
+    if not isinstance(blockers, list):
+        blockers = []
+
+    rationale = (
+        "Key gaps identified: " + "; ".join(priority_gaps)
+        if priority_gaps
+        else overall.get("one_sentence_verdict", "") or "Gap analysis generated from match report."
+    )
+
+    return GapAnalysis(
+        gap_analysis_id=artifact.get("artifact_id", "gap_live"),
+        priority_gaps=priority_gaps,
+        recommended_actions=recommended_actions or next_actions,
+        suggested_keywords=suggested_keywords,
+        replace_phrases=replace_phrases,
+        tone_guidance=tone_guidance,
+        blocked_claims=blocked_claims,
+        warnings=warnings,
+        blockers=blockers,
+        rationale=rationale,
+    )
+# [END PATCH: adapt_match_report_to_gap_analysis schema normalization]
 
 def main():
     st.set_page_config(page_title="Guided Job Optimization MVP", layout="wide")
@@ -1998,7 +2279,7 @@ def main():
             revisions=st.session_state.revisions,
             cover_letter=st.session_state.cover_letter,
             generated_artifacts=st.session_state.generated_artifacts,
-        )
+        )        
 
 
 if __name__ == "__main__":
